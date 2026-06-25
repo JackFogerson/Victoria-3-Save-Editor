@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -9,7 +10,7 @@ class Victoria3SaveEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Victoria 3 Pop Save Editor")
-        self.root.geometry("550x450")
+        self.root.geometry("550x550")
         self.root.resizable(False, False)
 
         # State Variables
@@ -17,8 +18,26 @@ class Victoria3SaveEditor:
         self.state_id = tk.StringVar()
 
         # Job modification
-        self.job_type = tk.StringVar(value="officers")
         self.workforce_increase = tk.StringVar(value="100")
+        self.job_list = [
+            "laborers",
+            "machinists",
+            "engineers",
+            "farmers",
+            "clergymen",
+            "clerks",
+            "officers",
+            "bureaucrats",
+            "aristocrats",
+            "capitalists",
+            "shopkeepers",
+            "academics",
+            "servicemen",
+            "peasants",
+            "slaves",
+        ]
+        # Dictionary to track which jobs are checked
+        self.job_checkboxes = {job: tk.BooleanVar(value=False) for job in self.job_list}
 
         # Culture modification
         self.target_culture = tk.StringVar()
@@ -59,41 +78,41 @@ class Victoria3SaveEditor:
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill="both", expand=True, padx=15, pady=10)
 
-        # Tab 1: Workforce
+        # Tab 1: Multiple Workforces
         tab_job = ttk.Frame(notebook, padding=10)
-        notebook.add(tab_job, text="Modify Workforce")
+        notebook.add(tab_job, text="Modify Workforces")
 
-        ttk.Label(tab_job, text="Job Type:").grid(
-            row=0, column=0, sticky="w", pady=5
-        )
-        jobs = [
-            "laborers",
-            "machinists",
-            "engineers",
-            "farmers",
-            "clergymen",
-            "clerks",
-            "officers",
-            "bureaucrats",
-            "aristocrats",
-            "capitalists",
-            "shopkeepers",
-            "academics",
-            "servicemen",
-            "peasants",
-            "slaves",
-        ]
-        job_cb = ttk.Combobox(
-            tab_job, textvariable=self.job_type, values=jobs, state="readonly"
-        )
-        job_cb.grid(row=0, column=1, sticky="w", pady=5, padx=5)
+        input_wf_frame = ttk.Frame(tab_job)
+        input_wf_frame.pack(fill="x", pady=5)
+        ttk.Label(input_wf_frame, text="Add to Workforce:").pack(side="left", padx=5)
+        ttk.Entry(input_wf_frame, textvariable=self.workforce_increase, width=10).pack(side="left", padx=5)
 
-        ttk.Label(tab_job, text="Add to Workforce:").grid(
-            row=1, column=0, sticky="w", pady=5
+        ttk.Label(tab_job, text="Select Job Types to Target:").pack(anchor="w", pady=(10, 2))
+        
+        # Scrollable Frame for Checkboxes
+        canvas_frame = ttk.Frame(tab_job)
+        canvas_frame.pack(fill="both", expand=True)
+        
+        canvas = tk.Canvas(canvas_frame, borderwidth=0, highlightthickness=0, height=120)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        ttk.Entry(tab_job, textvariable=self.workforce_increase, width=10).grid(
-            row=1, column=1, sticky="w", pady=5, padx=5
-        )
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Grid system for checkboxes inside scrollable area (2 columns)
+        for index, job in enumerate(self.job_list):
+            row = index // 2
+            col = index % 2
+            cb = ttk.Checkbutton(scrollable_frame, text=job, variable=self.job_checkboxes[job])
+            cb.grid(row=row, column=col, sticky="w", padx=15, pady=2)
 
         # Tab 2: Culture
         tab_culture = ttk.Frame(notebook, padding=10)
@@ -129,11 +148,11 @@ class Victoria3SaveEditor:
             row=1, column=1, sticky="w", pady=5, padx=5
         )
 
-        # Process Button
+        # Process Button (Direct Apply)
         btn_process = ttk.Button(
-            self.root, text="Apply Changes & Save As...", command=self.process_file
+            self.root, text="Apply Changes Directly to File", command=self.process_file
         )
-        btn_process.pack(pady=10)
+        btn_process.pack(pady=15)
 
     def browse_file(self):
         filename = filedialog.askopenfilename(
@@ -155,15 +174,7 @@ class Victoria3SaveEditor:
             )
             return
 
-        output_path = filedialog.asksaveasfilename(
-            defaultextension=".v3",
-            filetypes=[("Victoria 3 Save", "*.v3")],
-            initialfile="edited_" + os.path.basename(input_path),
-        )
-        if not output_path:
-            return
-
-        # Read inputs for modifications
+        # Read workforce inputs
         wf_inc = 0
         if self.workforce_increase.get().strip():
             try:
@@ -174,19 +185,20 @@ class Victoria3SaveEditor:
                 )
                 return
 
-        tgt_job = self.job_type.get().strip()
+        # Gather all checked job types
+        selected_jobs = [job for job, var in self.job_checkboxes.items() if var.get()]
+
         tgt_cult = self.target_culture.get().strip()
         new_cult = self.new_culture.get().strip()
         tgt_rel = self.target_religion.get().strip()
         new_rel = self.new_religion.get().strip()
 
         try:
-            # Run processing
+            # Process directly using binary streaming swap logic
             self.stream_edit_save(
                 input_path,
-                output_path,
                 state_id,
-                tgt_job,
+                selected_jobs,
                 wf_inc,
                 tgt_cult,
                 new_cult,
@@ -194,40 +206,32 @@ class Victoria3SaveEditor:
                 new_rel,
             )
             messagebox.showinfo(
-                "Success", f"File processed successfully!\nSaved to: {output_path}"
+                "Success", f"File modified successfully!"
             )
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
     def stream_edit_save(
-            self,
-            in_file,
-            out_file,
-            target_state,
-            t_job,
-            w_inc,
-            t_cult,
-            n_cult,
-            t_rel,
-            n_rel,
+        self,
+        in_file,
+        target_state,
+        selected_jobs,
+        w_inc,
+        t_cult,
+        n_cult,
+        t_rel,
+        n_rel,
     ):
-        import shutil
-
         pop_start_re = re.compile(r"^\s*\d+=\s*\{")
 
         in_pop_block = False
         bracket_depth = 0
         pop_lines = []
 
-        # We create a temporary file in the same directory to swap later
         temp_file = in_file + ".tmp"
 
-        # Using 'rb' and 'wb' (binary mode) guarantees Python won't change
-        # Unix line endings (\n) to Windows (\r\n), which usually causes Paradox crashes.
         with open(in_file, "rb") as f_in, open(temp_file, "wb") as f_out:
-
             for raw_line in f_in:
-                # Decode line as utf-8, ignoring errors so it doesn't trip on weird characters
                 line = raw_line.decode("utf-8", errors="ignore")
 
                 if not in_pop_block:
@@ -247,56 +251,48 @@ class Victoria3SaveEditor:
                         modified_block = self.modify_pop_block(
                             pop_lines,
                             target_state,
-                            t_job,
+                            selected_jobs,
                             w_inc,
                             t_cult,
                             n_cult,
                             t_rel,
                             n_rel,
                         )
-                        # Re-encode back to exact bytes
                         for mod_line in modified_block:
                             f_out.write(mod_line.encode("utf-8"))
                         pop_lines = []
 
-        # Safely replace the original file with our modified temporary one
+        # Swap files directly to simulate an in-place edit without breaking structure
         shutil.move(temp_file, in_file)
 
     def modify_pop_block(
         self,
         lines,
         target_state,
-        t_job,
+        selected_jobs,
         w_inc,
         t_cult,
         n_cult,
         t_rel,
         n_rel,
     ):
-        # Quick scan elements
         block_text = "".join(lines)
 
-        # Safeguard: Skip processing if it doesn't have a workforce line
         if "workforce=" not in block_text:
             return lines
 
-        # Extract values carefully respecting assignment structures
-        # Utilizing regex to accurately find top-level parameters in the block
         loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
         if not loc_match or loc_match.group(1) != target_state:
-            return lines  # Not our target state
+            return lines
 
-        # Reconstruct lines with modifications applied
         new_lines = []
         for line in lines:
             stripped = line.strip()
 
-            # 1. Modify Workforce if matching job type
-            if stripped.startswith("workforce=") and w_inc != 0:
-                type_match = re.search(
-                    r"^\s*type=(\w+)", block_text, re.MULTILINE
-                )
-                if type_match and type_match.group(1) == t_job:
+            # Modify Workforce if matching any of the selected job types
+            if stripped.startswith("workforce=") and w_inc != 0 and selected_jobs:
+                type_match = re.search(r"^\s*type=(\w+)", block_text, re.MULTILINE)
+                if type_match and type_match.group(1) in selected_jobs:
                     try:
                         current_wf = int(stripped.split("=")[1])
                         indent = line[: line.find("workforce=")]
@@ -304,18 +300,17 @@ class Victoria3SaveEditor:
                     except ValueError:
                         pass
 
-            # 2. Modify Culture
+            # Modify Culture
             elif (
                 stripped.startswith("culture=")
                 and t_cult
                 and n_cult
-                # ensures we match exact string/IDs
                 and stripped.split("=")[1].strip() == t_cult
             ):
                 indent = line[: line.find("culture=")]
                 line = f"{indent}culture={n_cult}\n"
 
-            # 3. Modify Religion
+            # Modify Religion
             elif (
                 stripped.startswith("religion=")
                 and t_rel
