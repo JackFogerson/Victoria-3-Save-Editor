@@ -59,7 +59,7 @@ class Victoria3SaveEditor:
             "mormon",
         ]
 
-        # Dynamic Row Lists: Each item is a dict storing UI widgets and tracking variables
+        # Dynamic Row Lists
         self.culture_rows = []
         self.religion_rows = []
 
@@ -99,7 +99,7 @@ class Victoria3SaveEditor:
         notebook.add(tab_job, text="Modify Workforces")
 
         ttk.Label(
-            tab_job, text="Enter change amount for each job type (0 to ignore):"
+            tab_job, text="Enter TOTAL workforce to add (divided evenly among state's pops):"
         ).pack(anchor="w", pady=(0, 5))
 
         canvas_frame = ttk.Frame(tab_job)
@@ -139,7 +139,6 @@ class Victoria3SaveEditor:
         self.tab_culture = ttk.Frame(notebook, padding=10)
         notebook.add(self.tab_culture, text="Change Culture")
 
-        # Initial Layout State for Culture Tab
         self.btn_init_culture = ttk.Button(
             self.tab_culture, text="Swap Culture", command=self.add_culture_row
         )
@@ -154,7 +153,6 @@ class Victoria3SaveEditor:
         self.tab_religion = ttk.Frame(notebook, padding=10)
         notebook.add(self.tab_religion, text="Change Religion")
 
-        # Initial Layout State for Religion Tab
         self.btn_init_religion = ttk.Button(
             self.tab_religion, text="Swap Religion", command=self.add_religion_row
         )
@@ -180,7 +178,6 @@ class Victoria3SaveEditor:
         if filename:
             self.file_path.set(filename)
 
-    # --- Culture Row Dynamic Rules Generator ---
     def add_culture_row(self):
         if not self.culture_container.winfo_manager():
             self.btn_init_culture.pack_forget()
@@ -224,7 +221,6 @@ class Victoria3SaveEditor:
             self.btn_add_more_culture.pack_forget()
             self.btn_init_culture.pack(anchor="center", expand=True, pady=20)
 
-    # --- Religion Row Dynamic Rules Generator ---
     def add_religion_row(self):
         if not self.religion_container.winfo_manager():
             self.btn_init_religion.pack_forget()
@@ -280,7 +276,6 @@ class Victoria3SaveEditor:
             self.btn_add_more_religion.pack_forget()
             self.btn_init_religion.pack(anchor="center", expand=True, pady=20)
 
-    # --- Process Files Engine ---
     def process_file(self):
         input_path = self.file_path.get()
         state_id = self.state_id.get().strip()
@@ -294,18 +289,18 @@ class Victoria3SaveEditor:
             )
             return
 
-        # Gather Job map modifications
-        job_changes = {}
+        # Gather requested total workforce pools
+        requested_totals = {}
         for job, var in self.job_inputs.items():
             val_str = var.get().strip()
             if val_str:
                 try:
                     amt = int(val_str)
                     if amt != 0:
-                        job_changes[job] = amt
+                        requested_totals[job] = amt
                 except ValueError:
                     messagebox.showerror(
-                        "Error", f"Workforce value for '{job}' must be an integer."
+                        "Error", f"Value for '{job}' must be an integer."
                     )
                     return
 
@@ -326,6 +321,21 @@ class Victoria3SaveEditor:
                 religion_map[t] = n
 
         try:
+            # PASS 1: Count target pop chunks matching criteria
+            pop_counts = self.count_matching_pops(input_path, state_id, list(requested_totals.keys()))
+
+            # Mathematically compute the dynamic splits per block
+            job_changes = {}
+            for job, total_pool in requested_totals.items():
+                count = pop_counts.get(job, 0)
+                if count > 0:
+                    # Using integer division to avoid float corruption in save structure
+                    job_changes[job] = total_pool // count
+                else:
+                    # If user asked to add to a job type that doesn't exist in that state
+                    job_changes[job] = 0
+
+            # PASS 2: Stream edit with specific calculated block modifications
             self.stream_edit_save(
                 input_path, state_id, job_changes, culture_map, religion_map
             )
@@ -333,9 +343,51 @@ class Victoria3SaveEditor:
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
+    def count_matching_pops(self, in_file, target_state, target_jobs):
+        """Pass 1: Fast stream to count pop segments matching state & job constraints."""
+        pop_counts = {job: 0 for job in target_jobs}
+        if not target_jobs:
+            return pop_counts
+
+        pop_start_re = re.compile(r"^\s*\d+=\s*\{")
+        in_pop_block = False
+        bracket_depth = 0
+        pop_lines = []
+
+        with open(in_file, "rb") as f_in:
+            for raw_line in f_in:
+                line = raw_line.decode("utf-8", errors="ignore")
+
+                if not in_pop_block:
+                    if pop_start_re.match(line):
+                        in_pop_block = True
+                        bracket_depth = 1
+                        pop_lines = [line]
+                else:
+                    pop_lines.append(line)
+                    bracket_depth += line.count("{")
+                    bracket_depth -= line.count("}")
+
+                    if bracket_depth == 0:
+                        in_pop_block = False
+                        block_text = "".join(pop_lines)
+                        pop_lines = []
+
+                        # Validate it's a real pop with a workforce parameter
+                        if "workforce=" in block_text and "type=" in block_text:
+                            loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
+                            if loc_match and loc_match.group(1) == target_state:
+                                type_match = re.search(r"^\s*type=(\w+)", block_text, re.MULTILINE)
+                                if type_match:
+                                    pop_job = type_match.group(1)
+                                    if pop_job in pop_counts:
+                                        pop_counts[pop_job] += 1
+        return pop_counts
+
     def stream_edit_save(
         self, in_file, target_state, job_changes, culture_map, religion_map
     ):
+        """Pass 2: Safely apply changes via binary swap logic."""
         pop_start_re = re.compile(r"^\s*\d+=\s*\{")
 
         in_pop_block = False
@@ -380,7 +432,6 @@ class Victoria3SaveEditor:
     ):
         block_text = "".join(lines)
 
-        # Structure Safeguard
         if "workforce=" not in block_text or "type=" not in block_text:
             return lines
 
@@ -395,9 +446,9 @@ class Victoria3SaveEditor:
         for line in lines:
             stripped = line.strip()
 
-            # 1. Process Workforce modifications
+            # 1. Process Calculated Workforce distribution splits
             if stripped.startswith("workforce=") and job_changes and pop_job:
-                if pop_job in job_changes:
+                if pop_job in job_changes and job_changes[pop_job] != 0:
                     try:
                         current_wf = int(stripped.split("=")[1])
                         indent = line[: line.find("workforce=")]
