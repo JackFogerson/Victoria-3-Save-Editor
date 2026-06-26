@@ -10,15 +10,14 @@ class Victoria3SaveEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Victoria 3 Pop Save Editor")
-        self.root.geometry("550x550")
+        self.root.geometry("580x550")
         self.root.resizable(False, False)
 
         # State Variables
         self.file_path = tk.StringVar()
         self.state_id = tk.StringVar()
 
-        # Job modification
-        self.workforce_increase = tk.StringVar(value="100")
+        # Job modification dictionary tracking individual StringVars
         self.job_list = [
             "laborers",
             "machinists",
@@ -36,8 +35,7 @@ class Victoria3SaveEditor:
             "peasants",
             "slaves",
         ]
-        # Dictionary to track which jobs are checked
-        self.job_checkboxes = {job: tk.BooleanVar(value=False) for job in self.job_list}
+        self.job_inputs = {job: tk.StringVar(value="0") for job in self.job_list}
 
         # Culture modification
         self.target_culture = tk.StringVar()
@@ -46,6 +44,26 @@ class Victoria3SaveEditor:
         # Religion modification
         self.target_religion = tk.StringVar()
         self.new_religion = tk.StringVar()
+        self.religion_list = [
+            "catholic",
+            "protestant",
+            "orthodox",
+            "oriental_orthodox",
+            "sunni",
+            "shiite",
+            "ibadi",
+            "jewish",
+            "gelugpa",
+            "mahayana",
+            "theravada",
+            "hindu",
+            "sikh",
+            "confucian",
+            "shinto",
+            "animist",
+            "athiest",
+            "mormon",
+        ]
 
         self.create_widgets()
 
@@ -55,7 +73,7 @@ class Victoria3SaveEditor:
         file_frame.pack(fill="x", padx=15, pady=10)
 
         ttk.Entry(
-            file_frame, textvariable=self.file_path, width=45, state="readonly"
+            file_frame, textvariable=self.file_path, width=48, state="readonly"
         ).pack(side="left", padx=5)
         ttk.Button(file_frame, text="Browse...", command=self.browse_file).pack(
             side="left", padx=5
@@ -78,28 +96,29 @@ class Victoria3SaveEditor:
         notebook = ttk.Notebook(self.root)
         notebook.pack(fill="both", expand=True, padx=15, pady=10)
 
-        # Tab 1: Multiple Workforces
+        # Tab 1: Specific Workforce Changes
         tab_job = ttk.Frame(notebook, padding=10)
         notebook.add(tab_job, text="Modify Workforces")
 
-        input_wf_frame = ttk.Frame(tab_job)
-        input_wf_frame.pack(fill="x", pady=5)
-        ttk.Label(input_wf_frame, text="Add to Workforce:").pack(side="left", padx=5)
-        ttk.Entry(input_wf_frame, textvariable=self.workforce_increase, width=10).pack(side="left", padx=5)
+        ttk.Label(
+            tab_job, text="Enter change amount for each job type (0 to ignore):"
+        ).pack(anchor="w", pady=(0, 5))
 
-        ttk.Label(tab_job, text="Select Job Types to Target:").pack(anchor="w", pady=(10, 2))
-        
-        # Scrollable Frame for Checkboxes
+        # Scrollable Frame for job entries
         canvas_frame = ttk.Frame(tab_job)
         canvas_frame.pack(fill="both", expand=True)
-        
-        canvas = tk.Canvas(canvas_frame, borderwidth=0, highlightthickness=0, height=120)
-        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+
+        canvas = tk.Canvas(
+            canvas_frame, borderwidth=0, highlightthickness=0, height=150
+        )
+        scrollbar = ttk.Scrollbar(
+            canvas_frame, orient="vertical", command=canvas.yview
+        )
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
         )
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
@@ -107,12 +126,18 @@ class Victoria3SaveEditor:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Grid system for checkboxes inside scrollable area (2 columns)
+        # Grid system for specific job inputs (2 columns of label + entry pairs)
         for index, job in enumerate(self.job_list):
             row = index // 2
-            col = index % 2
-            cb = ttk.Checkbutton(scrollable_frame, text=job, variable=self.job_checkboxes[job])
-            cb.grid(row=row, column=col, sticky="w", padx=15, pady=2)
+            col_base = (index % 2) * 2
+
+            lbl = ttk.Label(scrollable_frame, text=f"{job}:", width=12, anchor="e")
+            lbl.grid(row=row, column=col_base, sticky="w", padx=(10, 2), pady=4)
+
+            ent = ttk.Entry(
+                scrollable_frame, textvariable=self.job_inputs[job], width=8
+            )
+            ent.grid(row=row, column=col_base + 1, sticky="w", padx=(0, 15), pady=4)
 
         # Tab 2: Culture
         tab_culture = ttk.Frame(notebook, padding=10)
@@ -131,26 +156,37 @@ class Victoria3SaveEditor:
             row=1, column=1, sticky="w", pady=5, padx=5
         )
 
-        # Tab 3: Religion
+        # Tab 3: Religion (Using Combobox Dropdowns)
         tab_religion = ttk.Frame(notebook, padding=10)
         notebook.add(tab_religion, text="Change Religion")
 
         ttk.Label(tab_religion, text="Target Religion:").grid(
             row=0, column=0, sticky="w", pady=5
         )
-        ttk.Entry(
-            tab_religion, textvariable=self.target_religion, width=20
-        ).grid(row=0, column=1, sticky="w", pady=5, padx=5)
+        tgt_rel_cb = ttk.Combobox(
+            tab_religion,
+            textvariable=self.target_religion,
+            values=self.religion_list,
+            width=22,
+        )
+        tgt_rel_cb.grid(row=0, column=1, sticky="w", pady=5, padx=5)
+
         ttk.Label(tab_religion, text="New Religion:").grid(
             row=1, column=0, sticky="w", pady=5
         )
-        ttk.Entry(tab_religion, textvariable=self.new_religion, width=20).grid(
-            row=1, column=1, sticky="w", pady=5, padx=5
+        new_rel_cb = ttk.Combobox(
+            tab_religion,
+            textvariable=self.new_religion,
+            values=self.religion_list,
+            width=22,
         )
+        new_rel_cb.grid(row=1, column=1, sticky="w", pady=5, padx=5)
 
         # Process Button (Direct Apply)
         btn_process = ttk.Button(
-            self.root, text="Apply Changes Directly to File", command=self.process_file
+            self.root,
+            text="Apply Changes Directly to File",
+            command=self.process_file,
         )
         btn_process.pack(pady=15)
 
@@ -174,19 +210,20 @@ class Victoria3SaveEditor:
             )
             return
 
-        # Read workforce inputs
-        wf_inc = 0
-        if self.workforce_increase.get().strip():
-            try:
-                wf_inc = int(self.workforce_increase.get().strip())
-            except ValueError:
-                messagebox.showerror(
-                    "Error", "Workforce increase must be an integer."
-                )
-                return
-
-        # Gather all checked job types
-        selected_jobs = [job for job, var in self.job_checkboxes.items() if var.get()]
+        # Parse specific workforce adjustment amounts
+        job_changes = {}
+        for job, var in self.job_inputs.items():
+            val_str = var.get().strip()
+            if val_str:
+                try:
+                    amt = int(val_str)
+                    if amt != 0:
+                        job_changes[job] = amt
+                except ValueError:
+                    messagebox.showerror(
+                        "Error", f"Workforce value for '{job}' must be an integer."
+                    )
+                    return
 
         tgt_cult = self.target_culture.get().strip()
         new_cult = self.new_culture.get().strip()
@@ -198,16 +235,13 @@ class Victoria3SaveEditor:
             self.stream_edit_save(
                 input_path,
                 state_id,
-                selected_jobs,
-                wf_inc,
+                job_changes,
                 tgt_cult,
                 new_cult,
                 tgt_rel,
                 new_rel,
             )
-            messagebox.showinfo(
-                "Success", f"File modified successfully!"
-            )
+            messagebox.showinfo("Success", "File modified successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
@@ -215,8 +249,7 @@ class Victoria3SaveEditor:
         self,
         in_file,
         target_state,
-        selected_jobs,
-        w_inc,
+        job_changes,
         t_cult,
         n_cult,
         t_rel,
@@ -251,8 +284,7 @@ class Victoria3SaveEditor:
                         modified_block = self.modify_pop_block(
                             pop_lines,
                             target_state,
-                            selected_jobs,
-                            w_inc,
+                            job_changes,
                             t_cult,
                             n_cult,
                             t_rel,
@@ -262,15 +294,13 @@ class Victoria3SaveEditor:
                             f_out.write(mod_line.encode("utf-8"))
                         pop_lines = []
 
-        # Swap files directly to simulate an in-place edit without breaking structure
         shutil.move(temp_file, in_file)
 
     def modify_pop_block(
         self,
         lines,
         target_state,
-        selected_jobs,
-        w_inc,
+        job_changes,
         t_cult,
         n_cult,
         t_rel,
@@ -289,16 +319,20 @@ class Victoria3SaveEditor:
         for line in lines:
             stripped = line.strip()
 
-            # Modify Workforce if matching any of the selected job types
-            if stripped.startswith("workforce=") and w_inc != 0 and selected_jobs:
-                type_match = re.search(r"^\s*type=(\w+)", block_text, re.MULTILINE)
-                if type_match and type_match.group(1) in selected_jobs:
-                    try:
-                        current_wf = int(stripped.split("=")[1])
-                        indent = line[: line.find("workforce=")]
-                        line = f"{indent}workforce={current_wf + w_inc}\n"
-                    except ValueError:
-                        pass
+            # Modify specific workforce configuration based on job_changes map
+            if stripped.startswith("workforce=") and job_changes:
+                type_match = re.search(
+                    r"^\s*type=(\w+)", block_text, re.MULTILINE
+                )
+                if type_match:
+                    pop_job = type_match.group(1)
+                    if pop_job in job_changes:
+                        try:
+                            current_wf = int(stripped.split("=")[1])
+                            indent = line[: line.find("workforce=")]
+                            line = f"{indent}workforce={current_wf + job_changes[pop_job]}\n"
+                        except ValueError:
+                            pass
 
             # Modify Culture
             elif (
