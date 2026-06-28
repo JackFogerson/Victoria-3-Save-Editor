@@ -10,7 +10,7 @@ class Victoria3SaveEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Victoria 3 Pop Save Editor")
-        self.root.geometry("620x600")
+        self.root.geometry("620x620")
         self.root.resizable(False, False)
 
         # State Variables
@@ -79,16 +79,20 @@ class Victoria3SaveEditor:
 
         # 2. Filter Frame (State ID)
         filter_frame = ttk.LabelFrame(
-            self.root, text=" 2. Target Location ", padding=10
+            self.root, text=" 2. Target Location & Auto-Scanner ", padding=10
         )
         filter_frame.pack(fill="x", padx=15, pady=5)
 
-        ttk.Label(filter_frame, text="State ID (Location):").pack(
+        ttk.Label(filter_frame, text="State ID:").pack(side="left", padx=5)
+        ttk.Entry(filter_frame, textvariable=self.state_id, width=10).pack(
             side="left", padx=5
         )
-        ttk.Entry(filter_frame, textvariable=self.state_id, width=15).pack(
-            side="left", padx=5
+
+        # Auto-Scan Button
+        self.btn_scan = ttk.Button(
+            filter_frame, text="🔍 Scan State Demographics", command=self.auto_scan_state
         )
+        self.btn_scan.pack(side="left", padx=15)
 
         # 3. Modifications Notebook (Tabs)
         notebook = ttk.Notebook(self.root)
@@ -178,7 +182,102 @@ class Victoria3SaveEditor:
         if filename:
             self.file_path.set(filename)
 
-    def add_culture_row(self):
+    # --- Scanner Auto-Discovery Logic ---
+    def auto_scan_state(self):
+        input_path = self.file_path.get()
+        state_id = self.state_id.get().strip()
+
+        if not input_path or not os.path.exists(input_path):
+            messagebox.showerror("Error", "Please select a valid save file before scanning.")
+            return
+        if not state_id:
+            messagebox.showerror("Error", "Please enter a State ID to scan.")
+            return
+
+        # Visual indicator that processing is underway
+        self.btn_scan.config(text="Scanning file... Please wait", state="disabled")
+        self.root.update_idletasks()
+
+        found_cultures = set()
+        found_religions = set()
+
+        pop_start_re = re.compile(r"^\s*\d+=\s*\{")
+        in_pop_block = False
+        bracket_depth = 0
+        pop_lines = []
+
+        try:
+            with open(input_path, "rb") as f_in:
+                for raw_line in f_in:
+                    line = raw_line.decode("utf-8", errors="ignore")
+
+                    if not in_pop_block:
+                        if pop_start_re.match(line):
+                            in_pop_block = True
+                            bracket_depth = 1
+                            pop_lines = [line]
+                    else:
+                        pop_lines.append(line)
+                        bracket_depth += line.count("{")
+                        bracket_depth -= line.count("}")
+
+                        if bracket_depth == 0:
+                            in_pop_block = False
+                            block_text = "".join(pop_lines)
+                            pop_lines = []
+
+                            if "workforce=" in block_text and "type=" in block_text:
+                                loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
+                                if loc_match and loc_match.group(1) == state_id:
+                                    
+                                    # Harvest culture
+                                    cult_match = re.search(r"^\s*culture=(\w+)", block_text, re.MULTILINE)
+                                    if cult_match:
+                                        found_cultures.add(cult_match.group(1))
+                                    
+                                    # Harvest religion
+                                    rel_match = re.search(r"^\s*religion=(\w+)", block_text, re.MULTILINE)
+                                    if rel_match:
+                                        found_religions.add(rel_match.group(1))
+
+            # Reset active dynamic containers
+            self.clear_all_rows()
+
+            # Build UI Rows based on scan findings
+            if found_cultures:
+                for cult in sorted(found_cultures):
+                    self.add_culture_row(initial_target=cult)
+            if found_religions:
+                for rel in sorted(found_religions):
+                    if rel in self.religion_list:
+                        self.add_religion_row(initial_target=rel)
+
+            messagebox.showinfo("Scan Complete", f"Successfully found {len(found_cultures)} culture(s) and {len(found_religions)} religion(s) in State {state_id}!")
+
+        except Exception as e:
+            messagebox.showerror("Error During Scan", f"Failed to read demographic blocks: {str(e)}")
+        finally:
+            self.btn_scan.config(text="🔍 Scan State Demographics", state="normal")
+
+    def clear_all_rows(self):
+        # Clean out culture assignments
+        for r in list(self.culture_rows):
+            r["frame"].destroy()
+        self.culture_rows.clear()
+        self.culture_container.pack_forget()
+        self.btn_add_more_culture.pack_forget()
+        self.btn_init_culture.pack(anchor="center", expand=True, pady=20)
+
+        # Clean out religion assignments
+        for r in list(self.religion_rows):
+            r["frame"].destroy()
+        self.religion_rows.clear()
+        self.religion_container.pack_forget()
+        self.btn_add_more_religion.pack_forget()
+        self.btn_init_religion.pack(anchor="center", expand=True, pady=20)
+
+    # --- Dynamic Culture Generator ---
+    def add_culture_row(self, initial_target=""):
         if not self.culture_container.winfo_manager():
             self.btn_init_culture.pack_forget()
             self.culture_container.pack(fill="both", expand=True, pady=5)
@@ -187,7 +286,7 @@ class Victoria3SaveEditor:
         row_frame = ttk.Frame(self.culture_container)
         row_frame.pack(fill="x", pady=2)
 
-        tgt_var = tk.StringVar()
+        tgt_var = tk.StringVar(value=initial_target)
         new_var = tk.StringVar()
 
         lbl1 = ttk.Label(row_frame, text="Target ID:")
@@ -203,10 +302,7 @@ class Victoria3SaveEditor:
         row_dict = {"frame": row_frame, "tgt_var": tgt_var, "new_var": new_var}
 
         btn_del = ttk.Button(
-            row_frame,
-            text="❌",
-            width=3,
-            command=lambda: self.remove_culture_row(row_dict),
+            row_frame, text="❌", width=3, command=lambda: self.remove_culture_row(row_dict)
         )
         btn_del.pack(side="left", padx=10)
 
@@ -215,13 +311,13 @@ class Victoria3SaveEditor:
     def remove_culture_row(self, row_dict):
         row_dict["frame"].destroy()
         self.culture_rows.remove(row_dict)
-
         if not self.culture_rows:
             self.culture_container.pack_forget()
             self.btn_add_more_culture.pack_forget()
             self.btn_init_culture.pack(anchor="center", expand=True, pady=20)
 
-    def add_religion_row(self):
+    # --- Dynamic Religion Generator ---
+    def add_religion_row(self, initial_target=""):
         if not self.religion_container.winfo_manager():
             self.btn_init_religion.pack_forget()
             self.religion_container.pack(fill="both", expand=True, pady=5)
@@ -230,38 +326,27 @@ class Victoria3SaveEditor:
         row_frame = ttk.Frame(self.religion_container)
         row_frame.pack(fill="x", pady=2)
 
-        tgt_var = tk.StringVar()
+        tgt_var = tk.StringVar(value=initial_target)
         new_var = tk.StringVar()
 
         lbl1 = ttk.Label(row_frame, text="Target:")
         lbl1.pack(side="left", padx=2)
         cb1 = ttk.Combobox(
-            row_frame,
-            textvariable=tgt_var,
-            values=self.religion_list,
-            width=16,
-            state="readonly",
+            row_frame, textvariable=tgt_var, values=self.religion_list, width=16, state="readonly"
         )
         cb1.pack(side="left", padx=5)
 
         lbl2 = ttk.Label(row_frame, text="New:")
         lbl2.pack(side="left", padx=2)
         cb2 = ttk.Combobox(
-            row_frame,
-            textvariable=new_var,
-            values=self.religion_list,
-            width=16,
-            state="readonly",
+            row_frame, textvariable=new_var, values=self.religion_list, width=16, state="readonly"
         )
         cb2.pack(side="left", padx=5)
 
         row_dict = {"frame": row_frame, "tgt_var": tgt_var, "new_var": new_var}
 
         btn_del = ttk.Button(
-            row_frame,
-            text="❌",
-            width=3,
-            command=lambda: self.remove_religion_row(row_dict),
+            row_frame, text="❌", width=3, command=lambda: self.remove_religion_row(row_dict)
         )
         btn_del.pack(side="left", padx=10)
 
@@ -270,12 +355,12 @@ class Victoria3SaveEditor:
     def remove_religion_row(self, row_dict):
         row_dict["frame"].destroy()
         self.religion_rows.remove(row_dict)
-
         if not self.religion_rows:
             self.religion_container.pack_forget()
             self.btn_add_more_religion.pack_forget()
             self.btn_init_religion.pack(anchor="center", expand=True, pady=20)
 
+    # --- Process Files Engine ---
     def process_file(self):
         input_path = self.file_path.get()
         state_id = self.state_id.get().strip()
@@ -284,12 +369,9 @@ class Victoria3SaveEditor:
             messagebox.showerror("Error", "Please select a valid save file.")
             return
         if not state_id:
-            messagebox.showerror(
-                "Error", "Please specify a Target Location (State ID)."
-            )
+            messagebox.showerror("Error", "Please specify a Target Location (State ID).")
             return
 
-        # Gather requested total workforce pools
         requested_totals = {}
         for job, var in self.job_inputs.items():
             val_str = var.get().strip()
@@ -299,12 +381,9 @@ class Victoria3SaveEditor:
                     if amt != 0:
                         requested_totals[job] = amt
                 except ValueError:
-                    messagebox.showerror(
-                        "Error", f"Value for '{job}' must be an integer."
-                    )
+                    messagebox.showerror("Error", f"Value for '{job}' must be an integer.")
                     return
 
-        # Gather multiple culture maps
         culture_map = {}
         for r in self.culture_rows:
             t = r["tgt_var"].get().strip()
@@ -312,7 +391,6 @@ class Victoria3SaveEditor:
             if t and n:
                 culture_map[t] = n
 
-        # Gather multiple religion maps
         religion_map = {}
         for r in self.religion_rows:
             t = r["tgt_var"].get().strip()
@@ -321,30 +399,22 @@ class Victoria3SaveEditor:
                 religion_map[t] = n
 
         try:
-            # PASS 1: Count target pop chunks matching criteria
             pop_counts = self.count_matching_pops(input_path, state_id, list(requested_totals.keys()))
 
-            # Mathematically compute the dynamic splits per block
             job_changes = {}
             for job, total_pool in requested_totals.items():
                 count = pop_counts.get(job, 0)
                 if count > 0:
-                    # Using integer division to avoid float corruption in save structure
                     job_changes[job] = total_pool // count
                 else:
-                    # If user asked to add to a job type that doesn't exist in that state
                     job_changes[job] = 0
 
-            # PASS 2: Stream edit with specific calculated block modifications
-            self.stream_edit_save(
-                input_path, state_id, job_changes, culture_map, religion_map
-            )
+            self.stream_edit_save(input_path, state_id, job_changes, culture_map, religion_map)
             messagebox.showinfo("Success", "File modified successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
     def count_matching_pops(self, in_file, target_state, target_jobs):
-        """Pass 1: Fast stream to count pop segments matching state & job constraints."""
         pop_counts = {job: 0 for job in target_jobs}
         if not target_jobs:
             return pop_counts
@@ -373,7 +443,6 @@ class Victoria3SaveEditor:
                         block_text = "".join(pop_lines)
                         pop_lines = []
 
-                        # Validate it's a real pop with a workforce parameter
                         if "workforce=" in block_text and "type=" in block_text:
                             loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
                             if loc_match and loc_match.group(1) == target_state:
@@ -384,16 +453,11 @@ class Victoria3SaveEditor:
                                         pop_counts[pop_job] += 1
         return pop_counts
 
-    def stream_edit_save(
-        self, in_file, target_state, job_changes, culture_map, religion_map
-    ):
-        """Pass 2: Safely apply changes via binary swap logic."""
+    def stream_edit_save(self, in_file, target_state, job_changes, culture_map, religion_map):
         pop_start_re = re.compile(r"^\s*\d+=\s*\{")
-
         in_pop_block = False
         bracket_depth = 0
         pop_lines = []
-
         temp_file = in_file + ".tmp"
 
         with open(in_file, "rb") as f_in, open(temp_file, "wb") as f_out:
@@ -415,11 +479,7 @@ class Victoria3SaveEditor:
                     if bracket_depth == 0:
                         in_pop_block = False
                         modified_block = self.modify_pop_block(
-                            pop_lines,
-                            target_state,
-                            job_changes,
-                            culture_map,
-                            religion_map,
+                            pop_lines, target_state, job_changes, culture_map, religion_map
                         )
                         for mod_line in modified_block:
                             f_out.write(mod_line.encode("utf-8"))
@@ -427,9 +487,7 @@ class Victoria3SaveEditor:
 
         shutil.move(temp_file, in_file)
 
-    def modify_pop_block(
-        self, lines, target_state, job_changes, culture_map, religion_map
-    ):
+    def modify_pop_block(self, lines, target_state, job_changes, culture_map, religion_map):
         block_text = "".join(lines)
 
         if "workforce=" not in block_text or "type=" not in block_text:
@@ -446,7 +504,6 @@ class Victoria3SaveEditor:
         for line in lines:
             stripped = line.strip()
 
-            # 1. Process Calculated Workforce distribution splits
             if stripped.startswith("workforce=") and job_changes and pop_job:
                 if pop_job in job_changes and job_changes[pop_job] != 0:
                     try:
@@ -456,14 +513,12 @@ class Victoria3SaveEditor:
                     except ValueError:
                         pass
 
-            # 2. Process Multi-Culture modifications
             elif stripped.startswith("culture=") and culture_map:
                 current_cult = stripped.split("=")[1].strip()
                 if current_cult in culture_map:
                     indent = line[: line.find("culture=")]
                     line = f"{indent}culture={culture_map[current_cult]}\n"
 
-            # 3. Process Multi-Religion modifications
             elif stripped.startswith("religion=") and religion_map:
                 current_rel = stripped.split("=")[1].strip()
                 if current_rel in religion_map:
