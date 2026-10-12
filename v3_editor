@@ -2,6 +2,8 @@ import json
 import os
 import re
 import shutil
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from culture_tab import CultureDefinitionTab
@@ -202,6 +204,21 @@ class Victoria3SaveEditor:
         # --- Tab 2: Dynamic Cultures ---
         self.tab_culture = ttk.Frame(notebook, padding=10)
         notebook.add(self.tab_culture, text="Change Culture")
+
+        scale_frame = ttk.LabelFrame(self.tab_culture, text="Change culture population (workers + dependents)", padding=8)
+        scale_frame.pack(fill="x", pady=(0, 8))
+        self.scale_culture = tk.StringVar()
+        self.scale_percent = tk.StringVar(value="0")
+        scale_row = ttk.Frame(scale_frame)
+        scale_row.pack(fill="x")
+        ttk.Label(scale_row, text="Culture:").pack(side="left")
+        CulturePicker(scale_row, self.scale_culture).pack(side="left", padx=5)
+        ttk.Label(scale_row, text="Change %:").pack(side="left")
+        ttk.Entry(scale_row, textvariable=self.scale_percent, width=9).pack(side="left", padx=5)
+        ttk.Button(scale_row, text="Apply Percentage", command=self.apply_culture_percentage).pack(side="left")
+        ttk.Label(scale_frame, text="-90 = remove 90%; +10 = add 10%. Only this culture in the selected state.\nRounds each group's workers and dependents to whole people. Creates a backup.").pack(anchor="w", pady=4)
+        self.scale_status = tk.StringVar(value="Percentage changes apply separately from workforce additions and culture swaps.")
+        ttk.Label(scale_frame, textvariable=self.scale_status, wraplength=700).pack(anchor="w")
 
         self.btn_init_culture = ttk.Button(
             self.tab_culture, text="Swap Culture", command=self.add_culture_row
@@ -535,12 +552,33 @@ class Victoria3SaveEditor:
                                         pop_counts[pop_job] += 1
         return pop_counts
 
-    def stream_edit_save(self, in_file, target_state, job_changes, culture_map, religion_map):
+    def apply_culture_percentage(self):
+        try:
+            path = self.file_path.get()
+            state = self.state_id.get().strip()
+            if not os.path.isfile(path) or not state.isdecimal():
+                raise ValueError("Select a save and enter a numeric State ID.")
+            culture = culture_id_from_input(self.scale_culture.get())
+            percent = Decimal(self.scale_percent.get().strip().removesuffix('%'))
+            if not percent.is_finite() or percent < -100:
+                raise ValueError("Enter a percentage of -100 or greater, such as -90 or +10.")
+            if percent == 0:
+                self.scale_status.set("0% makes no change.")
+                return
+            stats = self.stream_edit_save(path, str(int(state)), {}, {}, {},
+                                          (culture, Decimal(1) + percent / 100))
+            self.shortage_autofill.cache = None
+            self.scale_status.set(f"Population changed from {stats['before']:,} to {stats['after']:,} across {stats['groups']} groups. Backup created beside the save.")
+        except (ValueError, InvalidOperation, OSError) as exc:
+            messagebox.showerror("Cannot Change Population", str(exc))
+
+    def stream_edit_save(self, in_file, target_state, job_changes, culture_map, religion_map, population_scale=None):
         pop_start_re = re.compile(r"^\s*\d+=\s*\{")
         in_pop_block = False
         bracket_depth = 0
         pop_lines = []
         temp_file = in_file + ".tmp"
+        stats = {"groups": 0, "before": 0, "after": 0}
 
         with open(in_file, "rb") as f_in, open(temp_file, "wb") as f_out:
             for raw_line in f_in:
@@ -563,11 +601,42 @@ class Victoria3SaveEditor:
                         modified_block = self.modify_pop_block(
                             pop_lines, target_state, job_changes, culture_map, religion_map
                         )
+                        if population_scale is not None:
+                            modified_block = self.scale_pop_block(modified_block, target_state, *population_scale, stats)
                         for mod_line in modified_block:
                             f_out.write(mod_line.encode("utf-8"))
                         pop_lines = []
 
-        shutil.move(temp_file, in_file)
+        if in_pop_block:
+            os.remove(temp_file)
+            raise ValueError("The save contains an incomplete population block; no changes applied.")
+        if population_scale is not None and not stats['groups']:
+            os.remove(temp_file)
+            raise ValueError("No population groups matched that culture and State ID.")
+        backup = in_file + "." + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + ".bak"
+        shutil.copy2(in_file, backup)
+        os.replace(temp_file, in_file)
+        return stats
+
+    @staticmethod
+    def scale_pop_block(lines, target_state, culture, factor, stats):
+        text = ''.join(lines)
+        location = re.search(r'^\s*location=(\d+)\s*$', text, re.MULTILINE)
+        original_culture = re.search(r'^\s*culture=(\w+)\s*$', text, re.MULTILINE)
+        if not location or location[1] != target_state or not original_culture or original_culture[1] != culture:
+            return lines
+        stats['groups'] += 1
+        output = []
+        for line in lines:
+            match = re.fullmatch(r'(\s*(?:workforce|dependents)=)(\d+)(\s*)', line)
+            if match:
+                before = int(match[2])
+                after = int((Decimal(before) * factor).to_integral_value(rounding=ROUND_HALF_UP))
+                stats['before'] += before
+                stats['after'] += after
+                line = match[1] + str(after) + match[3]
+            output.append(line)
+        return output
 
     def modify_pop_block(self, lines, target_state, job_changes, culture_map, religion_map):
         block_text = "".join(lines)

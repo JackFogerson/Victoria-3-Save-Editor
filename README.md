@@ -47,3 +47,9 @@ Subsistence vacancies are excluded based on the Alabama screenshot check. The re
 With a save selected, entering the State ID automatically fills Modify Workforces with estimated shortfalls (vacancies minus available qualifications). The first scan runs in the background; subsequent states use a cache invalidated when the save or production-method files change. States with no shortfall get zeros. Turn off Autofill to enter amounts entirely manually, or edit filled amounts before Apply. Manual changes made during a calculation are preserved. Recalculate forces a fresh scan. Selecting another state clears previous additions while autofill is enabled.
 
 Autofill only changes form fields. Apply Population Changes is still required to write the save. Additions are distributed exactly across existing workforce pops, including remainders. If a requested profession has no existing workforce pop, Apply reports an error instead of silently skipping it.
+
+## Culture population percentages
+
+In Change Culture, use Change culture population to select a culture by ID/name and enter a signed percentage: `-90` removes 90%, `+10` adds 10%, and `-100` sets workers and dependents to zero. Decimal percentages are supported. Each matching population group's workers and dependents are scaled separately and rounded to whole people (halves round up), so very small populations may not change by the exact aggregate percentage. The existing culture ID is preserved.
+
+Apply Percentage changes only that culture in the selected State ID and creates a dated backup beside the save. It does not apply workforce autofill amounts, culture swaps, or religion swaps. A status message reports before/after totals. Missing matches or invalid percentages leave the save unchanged.
