@@ -111,6 +111,9 @@ def estimate(save, game=DEFAULT_GAME):
         bid = text.split('=')[0].strip()
         sid = value(text, 'state')
         if sid not in states or value(text, 'active', 'yes') == 'no': continue
+        # Calibrated against Alabama's no-shortage tooltip: unused subsistence
+        # capacity must not be treated as ordinary vacancies to fill.
+        if value(text, 'building', '').startswith('building_subsistence_'): continue
 
         rates = defaultdict(Decimal)
         methods = re.search(r'^\s*production_methods=\{([^}]*)\}', text, re.M)
@@ -156,9 +159,9 @@ def write_report(result, output):
     rows = result['rows']
     lines = ['# Estimated qualification shortages', '', f"Save: `{Path(result['save']).name}`", '',
              f"{result['states_scanned']} states scanned; {len(set(r['state_id'] for r in rows))} states flagged; {len(rows)} profession shortages.", '',
-             'Method: sum each active building’s production-method job capacity minus workers assigned to that building; subtract saved employable qualifications. Positive shortfalls round up.', '',
+             'Method: sum each active non-subsistence building’s production-method job capacity minus workers assigned to that building; subtract saved employable qualifications. Positive shortfalls round up. Excluding subsistence capacity is an inference calibrated against the Alabama screenshot.', '',
              'Estimates only: employment modifiers, mod load order, hiring restrictions, and engine rounding may differ. No save or game file is modified. Compare Vacancies to “needed for full employment”; shortfall is vacancies minus available qualifications.', '',
-             'North Sumatra (575) and Hudavendigar (835) match the supplied screenshots. Other results still need in-game verification.', '',
+             'Screenshot checks: North Sumatra (575), Hudavendigar (835), Minsk (0), and the displayed Baja Paraguay (325) counts match. Alabama (75) correctly has no flagged shortage after excluding subsistence capacity. Other results still need in-game verification.', '',
              '| State ID | Region | Owner | Profession | Vacancies | Available | Shortfall |',
              '|---|---|---|---|---:|---:|---:|']
     for r in sorted(rows, key=lambda r: (r['region'], int(r['state_id']), r['profession'])):

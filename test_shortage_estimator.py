@@ -24,6 +24,11 @@ class ShortageTests(unittest.TestCase):
             self.assertEqual(result['rows'][0]['estimated_shortage'], 1)
             self.assertEqual(result['rows'][0]['estimated_vacancies'], 1)
             self.assertEqual(result['warnings'], {})
+            # Empty subsistence capacity must not increase ordinary vacancies.
+            save.write_text(save.read_text().replace('building_manager={\n database={', 'building_manager={\n database={\n6={\n building=building_subsistence_farm\n state=42\n levels=100\n production_methods={ "test_pm" }\n}\n'))
+            with_subsistence = estimate(save, root)
+            self.assertEqual(with_subsistence['rows'], result['rows'])
+            save.write_bytes(original)
             write_report(result, root / 'report.json')
             self.assertTrue((root / 'report.md').is_file())
             self.assertEqual(save.read_bytes(), original)
