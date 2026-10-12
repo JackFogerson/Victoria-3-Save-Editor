@@ -1,8 +1,62 @@
+import json
 import os
 import re
 import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+
+
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
+    CULTURE_NAMES = json.load(culture_file)
+
+
+def culture_label(culture_id):
+    return f"{culture_id} ({CULTURE_NAMES.get(culture_id) or 'pending'})"
+
+
+def culture_id_from_input(value):
+    value = value.strip()
+    labeled = re.fullmatch(r"(\w+) \([^\n]*\)", value)
+    if labeled:
+        return labeled.group(1)
+    for culture_id, name in CULTURE_NAMES.items():
+        if name.casefold() == value.casefold():
+            return culture_id
+    if re.fullmatch(r"\w+", value):
+        return value
+    raise ValueError("Select a culture result or enter a culture ID.")
+
+
+class CulturePicker(ttk.Combobox):
+    """Editable ID/name search; dropdown labels never enter the save file."""
+
+    def __init__(self, parent, variable):
+        super().__init__(parent, textvariable=variable, width=21, state="normal")
+        self.variable = variable
+        self.configure(postcommand=self.refresh_results)
+        self.bind("<KeyRelease>", self.refresh_results)
+        self.bind("<<ComboboxSelected>>", self.format_selection)
+        self.bind("<FocusOut>", self.format_selection)
+        self.bind("<Return>", self.format_selection)
+        self.refresh_results()
+
+    def refresh_results(self, event=None):
+        query = self.variable.get().strip().casefold()
+        results = [culture_label(cid) for cid, name in CULTURE_NAMES.items()
+                   if query in cid.casefold() or query in name.casefold()
+                   or query == culture_label(cid).casefold()]
+        if query.isdecimal() and query not in CULTURE_NAMES:
+            results.insert(0, culture_label(query))
+        self.configure(values=results)
+
+    def format_selection(self, event=None):
+        if not self.variable.get().strip():
+            return
+        try:
+            self.variable.set(culture_label(culture_id_from_input(self.variable.get())))
+        except ValueError:
+            pass
+        self.refresh_results()
 
 
 class Victoria3SaveEditor:
@@ -176,7 +230,9 @@ class Victoria3SaveEditor:
         btn_process.pack(pady=15)
 
     def browse_file(self):
+        save_directory = os.path.join(os.path.expanduser("~"), "Documents", "Paradox Interactive", "Victoria 3", "save games")
         filename = filedialog.askopenfilename(
+            initialdir=save_directory if os.path.isdir(save_directory) else os.path.expanduser("~"),
             filetypes=[("Victoria 3 Save", "*.v3"), ("Text Files", "*.txt")]
         )
         if filename:
@@ -298,17 +354,17 @@ class Victoria3SaveEditor:
         row_frame = ttk.Frame(self.culture_container)
         row_frame.pack(fill="x", pady=2)
 
-        tgt_var = tk.StringVar(value=initial_target)
+        tgt_var = tk.StringVar(value=culture_label(initial_target) if initial_target else "")
         new_var = tk.StringVar()
 
         lbl1 = ttk.Label(row_frame, text="Target ID:")
         lbl1.pack(side="left", padx=2)
-        ent1 = ttk.Entry(row_frame, textvariable=tgt_var, width=12)
+        ent1 = CulturePicker(row_frame, tgt_var)
         ent1.pack(side="left", padx=5)
 
         lbl2 = ttk.Label(row_frame, text="New ID:")
         lbl2.pack(side="left", padx=2)
-        ent2 = ttk.Entry(row_frame, textvariable=new_var, width=12)
+        ent2 = CulturePicker(row_frame, new_var)
         ent2.pack(side="left", padx=5)
 
         row_dict = {"frame": row_frame, "tgt_var": tgt_var, "new_var": new_var}
@@ -399,7 +455,11 @@ class Victoria3SaveEditor:
             t = r["tgt_var"].get().strip()
             n = r["new_var"].get().strip()
             if t and n:
-                culture_map[t] = n
+                try:
+                    culture_map[culture_id_from_input(t)] = culture_id_from_input(n)
+                except ValueError as exc:
+                    messagebox.showerror("Invalid Culture", str(exc))
+                    return
 
         religion_map = {}
         for r in self.religion_rows:
