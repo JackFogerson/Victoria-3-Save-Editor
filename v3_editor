@@ -39,7 +39,6 @@ class CulturePicker(ttk.Combobox):
         self.configure(postcommand=self.refresh_results)
         self.bind("<KeyRelease>", self.refresh_results)
         self.bind("<<ComboboxSelected>>", self.format_selection)
-        self.bind("<FocusOut>", self.format_selection)
         self.bind("<Return>", self.format_selection)
         self.refresh_results()
         self.suggestions = LiveSuggestions(self, variable, self.refresh_results)

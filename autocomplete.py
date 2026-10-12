@@ -13,7 +13,7 @@ class LiveSuggestions:
         widget.bind('<Up>', lambda event: self.move(-1), add='+')
         widget.bind('<Return>', self.choose, add='+')
         widget.bind('<Escape>', self.hide, add='+')
-        widget.bind('<FocusOut>', self.hide, add='+')
+        widget.bind('<FocusOut>', self.focus_out, add='+')
         widget.bind('<Destroy>', self.destroy, add='+')
         widget.bind('<ButtonPress-1>', self.hide, add='+')
         self.window = widget.winfo_toplevel()
@@ -25,6 +25,19 @@ class LiveSuggestions:
         if self.pending is not None:
             self.widget.after_cancel(self.pending)
         self.pending = self.widget.after_idle(self.show)
+
+    def focus_out(self, event=None):
+        # Windows activates the suggestion window before delivering its click.
+        # Keep it alive when focus or the pointer is moving into that window.
+        if self.popup is not None and self.popup.winfo_viewable():
+            focus = self.widget.focus_get()
+            if focus is not None and focus.winfo_toplevel() == self.popup:
+                return
+            x, y = self.widget.winfo_pointerxy()
+            if (self.popup.winfo_rootx() <= x < self.popup.winfo_rootx() + self.popup.winfo_width()
+                    and self.popup.winfo_rooty() <= y < self.popup.winfo_rooty() + self.popup.winfo_height()):
+                return
+        self.hide()
 
     def show(self):
         self.pending = None
@@ -84,6 +97,7 @@ class LiveSuggestions:
         finally:
             self.choosing = False
         self.hide()
+        self.widget.focus_set()
         return 'break'
 
     def hide(self, event=None):

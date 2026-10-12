@@ -4,6 +4,33 @@ import unittest
 
 
 class AutocompleteTests(unittest.TestCase):
+    def test_mouse_selection_after_popup_takes_focus(self):
+        ns = runpy.run_path('v3_editor')
+        root = tk.Tk()
+        self.addCleanup(root.destroy)
+        variable = tk.StringVar()
+        picker = ns['CulturePicker'](root, variable)
+        picker.pack()
+        root.update()
+        picker.focus_force()
+        root.update()
+        picker.insert(0, 'ger')
+        root.update()
+        suggestions = picker.suggestions
+        results = suggestions.list.get(0, 'end')
+        index = results.index('1 (south german)')
+        # Reproduce Windows moving focus before dispatching the mouse press.
+        suggestions.list.focus_force()
+        root.update()
+        self.assertEqual(variable.get(), 'ger')
+        self.assertTrue(suggestions.popup.winfo_viewable())
+        x, y, width, height = suggestions.list.bbox(index)
+        suggestions.list.event_generate('<ButtonPress-1>', x=x + 3, y=y + height // 2)
+        root.update()
+        self.assertEqual(variable.get(), '1 (south german)')
+        self.assertEqual(ns['culture_id_from_input'](variable.get()), '1')
+        self.assertFalse(suggestions.popup.winfo_viewable())
+
     def test_live_typing_selection_and_manual_id(self):
         ns = runpy.run_path('v3_editor')
         root = tk.Tk()
