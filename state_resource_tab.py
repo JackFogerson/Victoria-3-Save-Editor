@@ -14,15 +14,13 @@ class StateResourceTab(ttk.Frame):
         self.editor = editor
         self.region = None
         self.folder = tk.StringVar(value=str(DEFAULT_REGION_FOLDER))
-        self.mode = tk.StringVar(value='Save State ID')
         self.land = tk.StringVar(value='0')
-        self.status = tk.StringVar(value='Enter State ID above, choose the ID type, then load the state.')
+        self.status = tk.StringVar(value='Select a save and enter its State ID above, then load the state.')
         ttk.Label(self, text='Edits map definitions for new games; creates a backup when saving.').pack(anchor='w')
         row = ttk.Frame(self); row.pack(fill='x', pady=4)
         ttk.Entry(row, textvariable=self.folder, state='readonly').pack(side='left', fill='x', expand=True)
         ttk.Button(row, text='Browse Folder…', command=self.browse).pack(side='left')
         row = ttk.Frame(self); row.pack(fill='x', pady=4)
-        ttk.Combobox(row, textvariable=self.mode, values=['Save State ID', 'Map Region ID'], state='readonly', width=18).pack(side='left')
         ttk.Button(row, text='Load State', command=self.load).pack(side='left', padx=6)
         ttk.Label(row, text='Arable land:').pack(side='left')
         ttk.Entry(row, textvariable=self.land, width=10).pack(side='left', padx=4)
@@ -79,23 +77,17 @@ class StateResourceTab(ttk.Frame):
             self.status.set('Click Load State to read this folder.')
 
     def selection_context(self):
-        return (self.folder.get(), self.mode.get(), self.editor.state_id.get().strip(),
-                self.editor.file_path.get() if self.mode.get() == 'Save State ID' else '')
+        return (self.folder.get(), self.editor.state_id.get().strip(), self.editor.file_path.get())
 
     def load(self):
         if not self.discard():
             return
         try:
             context = self.selection_context()
-            folder, mode, sid, save = context
+            folder, sid, save = context
             if not sid.isdecimal(): raise ValueError('Enter a numeric State ID above.')
             regions, arable_options, capped_options = scan_regions(folder)
-            if mode == 'Save State ID':
-                region = resolve_state(save, sid)
-            else:
-                matches = [name for name, (_, rid) in regions.items() if int(rid) == int(sid)]
-                if len(matches) != 1: raise ValueError('Map Region ID was not found uniquely in this folder.')
-                region = matches[0]
+            region = resolve_state(save, sid)
             if region not in regions: raise ValueError(f'{region} is not present in this folder.')
             path, rid = regions[region]
             original = path.read_bytes()
@@ -112,7 +104,7 @@ class StateResourceTab(ttk.Frame):
         for key in self.queries:
             self.queries[key].set(''); self.search(key)
         self.refresh()
-        self.status.set(f'{region} (map ID {rid}) — {path.name}. Select a capped building to change its level, then click Add / Update.')
+        self.status.set(f'State ID {sid} → {region} — {path.name}. Select a capped building to change its level, then click Add / Update.')
         self.save_button.configure(state='normal')
 
     def refresh(self):

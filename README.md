@@ -30,6 +30,6 @@ These are initial game-history changes for new games, not edits to the current s
 
 ## State resources
 
-In State Editor, choose Save State ID to resolve the top State ID through the selected save, or Map Region ID to use the map definition's explicit `id` (for example, New York is 267). Click Load State. The editor searches the region folder for the matching file and shows its name.
+State Editor always uses the State ID entered at the top and resolves it through the selected save, just like State Homelands. Click Load State. The editor searches the region folder for the matching file and shows its name.
 
 Change arable land directly. Add/remove arable building keys. Select a capped building, enter a level, and click Add / Update; the same controls add new capped buildings, and Remove deletes the selected entry. Search suggestions come from the selected folder, and manual building keys remain supported. Levels must be non-negative whole numbers. Click Save State Resources to write the loaded region's changed fields and create a dated backup. Other regions, provinces, traits, and discoverable-resource definitions are preserved. These edits affect game map definitions for new games, not the selected save.

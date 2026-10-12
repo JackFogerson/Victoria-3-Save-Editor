@@ -37,7 +37,7 @@ class StateResourceTests(unittest.TestCase):
         for bad in ('-1', '1.5', 'x'):
             with self.assertRaises(ValueError): replace_resources(SOURCE, 'STATE_OTHER', {'arable_land': bad})
 
-    def test_ui_map_id_update_remove_and_backup(self):
+    def test_ui_shared_state_id_update_remove_and_backup(self):
         root = tk.Tk(); root.withdraw(); self.addCleanup(root.destroy)
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             path = Path(folder) / 'region.txt'
@@ -46,9 +46,11 @@ class StateResourceTests(unittest.TestCase):
             regions, arable, capped = scan_regions(folder)
             self.assertEqual(regions['STATE_NEW_YORK'][1], '267')
             self.assertEqual(capped, ['building_iron_mine'])
-            editor = Mock(state_id=tk.StringVar(value='267'), file_path=tk.StringVar())
+            save = Path(folder) / 'sample.v3'
+            save.write_text('states={\n database={\n 42={ region="STATE_NEW_YORK" }\n }\n}\n')
+            editor = Mock(state_id=tk.StringVar(value='42'), file_path=tk.StringVar(value=str(save)))
             tab = StateResourceTab(ttk.Notebook(root), editor)
-            tab.folder.set(folder); tab.mode.set('Map Region ID'); tab.load()
+            tab.folder.set(folder); tab.load()
             self.assertEqual(tab.region, 'STATE_NEW_YORK')
             tab.land.set('250')
             tab.queries['capped_resources'].set('building_iron_mine'); tab.level.set('60'); tab.add('capped_resources')
@@ -58,7 +60,7 @@ class StateResourceTests(unittest.TestCase):
             with patch('state_resource_tab.messagebox.showerror') as error:
                 tab.save(); error.assert_called_once()
             self.assertEqual(path.read_bytes(), original)
-            editor.state_id.set('267'); tab.save()
+            editor.state_id.set('42'); tab.save()
             self.assertEqual(resource_values(definitions(path.read_text(encoding='utf-8-sig'))['STATE_NEW_YORK']), {
                 'arable_land': '250', 'arable_resources': ['building_rice_farm'], 'capped_resources': {'building_iron_mine': '60'}})
             self.assertEqual(next(Path(folder).glob('*.bak')).read_bytes(), original)
