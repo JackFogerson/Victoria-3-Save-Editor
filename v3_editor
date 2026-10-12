@@ -7,6 +7,7 @@ from tkinter import filedialog, messagebox, ttk
 from culture_tab import CultureDefinitionTab
 from homeland_tab import HomelandTab
 from state_resource_tab import StateResourceTab
+from shortage_autofill import ShortageAutofill
 from autocomplete import LiveSuggestions
 
 
@@ -159,6 +160,7 @@ class Victoria3SaveEditor:
         # --- Tab 1: Specific Workforce Changes ---
         tab_job = ttk.Frame(notebook, padding=10)
         notebook.add(tab_job, text="Modify Workforces")
+        self.shortage_autofill = ShortageAutofill(self, tab_job)
 
         ttk.Label(
             tab_job, text="Enter TOTAL workforce to add (divided evenly among state's workforce pops):"
@@ -483,11 +485,13 @@ class Victoria3SaveEditor:
             for job, total_pool in requested_totals.items():
                 count = pop_counts.get(job, 0)
                 if count > 0:
-                    job_changes[job] = total_pool // count
+                    base, remainder = divmod(total_pool, count)
+                    job_changes[job] = iter([base + 1] * remainder + [base] * (count - remainder))
                 else:
-                    job_changes[job] = 0
+                    raise ValueError(f"No existing workforce pops for {job} in this state. Cannot add {total_pool} workers to that profession.")
 
             self.stream_edit_save(input_path, state_id, job_changes, culture_map, religion_map)
+            self.shortage_autofill.cache = None
             messagebox.showinfo("Success", "File modified successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
@@ -587,7 +591,9 @@ class Victoria3SaveEditor:
                     try:
                         current_wf = int(stripped.split("=")[1])
                         indent = line[: line.find("workforce=")]
-                        line = f"{indent}workforce={current_wf + job_changes[pop_job]}\n"
+                        change = job_changes[pop_job]
+                        amount = change if isinstance(change, int) else next(change)
+                        line = f"{indent}workforce={current_wf + amount}\n"
                     except ValueError:
                         pass
 

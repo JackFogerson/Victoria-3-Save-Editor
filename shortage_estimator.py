@@ -145,6 +145,7 @@ def estimate(save, game=DEFAULT_GAME):
                              'warnings': sorted(warnings[sid])})
     rows.sort(key=lambda row: (-row['estimated_shortage'], int(row['state_id']), row['profession']))
     return {'save': str(Path(save).resolve()), 'game': str(game), 'profession_indices': enum,
+            'state_names': {sid: st['region'] for sid, st in states.items()},
             'profession_index_validation': enum_validation,
             'comparison_states': {sid: {'region': st['region'], 'country': st['country'], 'qualifications': {job: float(st['qualifications'].get(index, 0)) for job, index in enum.items()}, 'vacancies': {job: float(n) for job, n in vacancies[sid].items()}} for sid, st in states.items() if 'SUMATRA' in st['region'] or 'HUDAV' in st['region']},
             'unmapped_professions': sorted(set(professions) - set(enum)),
