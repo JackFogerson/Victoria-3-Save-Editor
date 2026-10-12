@@ -55,3 +55,9 @@ In Change Culture, use Change culture population to select a culture by ID/name 
 Apply Percentage changes only that culture in the selected State ID and creates a dated backup beside the save. It does not apply workforce autofill amounts, culture swaps, or religion swaps. A status message reports before/after totals. Missing matches or invalid percentages leave the save unchanged.
 
 Culture source selectors (swap Target ID and percentage Culture) suggest only cultures with workers or dependents in the selected save/state. This list loads in the background when the save or State ID changes, independently of workforce autofill. Unknown names show `(pending)`. Replacement New ID remains unrestricted; manual ID entry remains supported.
+
+## Laws
+
+The Laws tab scans the installed `common/laws` folder (Browse Folder supports other installations). Search the dropdown and select a law to load it automatically. Under Ongoing Effects, select a consequence, edit its value and click Add / Update; use the searchable effect list to add a consequence, or Remove Selected to delete one. Suggestions include effects found across the loaded laws; custom modifier keys are allowed. Values are numbers or yes/no. Percentage modifiers use fractional values, such as 0.1 for 10%.
+
+Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, creates a dated backup, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.

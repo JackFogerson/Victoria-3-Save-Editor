@@ -12,6 +12,7 @@ from state_resource_tab import StateResourceTab
 from shortage_autofill import ShortageAutofill
 from autocomplete import LiveSuggestions
 from state_culture_index import StateCultureIndex
+from law_tab import LawTab
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
@@ -74,8 +75,8 @@ class Victoria3SaveEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Victoria 3 Pop Save Editor")
-        self.root.geometry("800x780")
-        self.root.minsize(800, 780)
+        self.root.geometry("1000x800")
+        self.root.minsize(1000, 800)
 
         # State Variables
         self.file_path = tk.StringVar()
@@ -265,6 +266,7 @@ class Victoria3SaveEditor:
         self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES)
         self.homeland_tab = HomelandTab(notebook, self, CULTURE_NAMES)
         self.state_resource_tab = StateResourceTab(notebook, self)
+        self.law_tab = LawTab(notebook)
 
         # 4. Master Process Button
         btn_process = ttk.Button(
