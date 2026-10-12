@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from autocomplete import LiveSuggestions
 
 from culture_definitions import (DEFAULT_CULTURE_FILE, attributes, catalog,
                                  definitions, replace_attributes, save_changes)
@@ -34,6 +35,7 @@ class CultureDefinitionTab(ttk.Frame):
         self.picker = ttk.Combobox(choose, textvariable=self.selection, width=38, postcommand=self.filter_cultures)
         self.picker.pack(side='left', padx=5)
         self.picker.bind('<KeyRelease>', self.filter_cultures)
+        self.suggestions = LiveSuggestions(self.picker, self.selection, self.filter_cultures)
         ttk.Button(choose, text='Load Culture', command=self.load_culture).pack(side='left')
         self.combos = {}
         for key in ('religion', 'language'):

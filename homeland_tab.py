@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from autocomplete import LiveSuggestions
 from culture_definitions import save_changes
 from state_homelands import DEFAULT_STATE_FILE, resolve_state, history_states, homelands, replace_homelands
 
@@ -39,6 +40,7 @@ class HomelandTab(ttk.Frame):
         self.picker = ttk.Combobox(row, textvariable=self.query, width=42, postcommand=self.search)
         self.picker.pack(side='left')
         self.picker.bind('<KeyRelease>', self.search)
+        self.suggestions = LiveSuggestions(self.picker, self.query, self.search)
         ttk.Button(row, text='Add Homeland', command=self.add).pack(side='left', padx=5)
         ttk.Button(row, text='Remove Selected', command=self.remove).pack(side='left')
         self.save_button = ttk.Button(self, text='Save State Homelands (creates backup)', command=self.save, state='disabled')

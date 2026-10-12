@@ -4,7 +4,7 @@ Run `python v3_editor` with Python and Tkinter installed. Keep `cultures.json` b
 
 The file picker starts in your user's `Documents/Paradox Interactive/Victoria 3/save games` folder when available.
 
-In either culture field, type an ID or part of a name, then open the dropdown to see matching `id (name)` results. Search is case-insensitive. You can also type an ID directly; unknown IDs display `id (pending)`. Scanned cultures use the same labels. Only IDs are written to the save.
+In either culture field, type an ID or part of a name to immediately see matching `id (name)` results. Search is case-insensitive. Suggestions update while typing; click a result or use arrow keys and Enter. Escape dismisses suggestions without changing your input. You can also type an ID directly; unknown IDs display `id (pending)`. Scanned cultures use the same labels. Only IDs are written to the save.
 
 Add or update entries in `cultures.json` to expand the name list, then restart the editor. The supplied mappings are user-provided.
 
