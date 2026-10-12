@@ -31,7 +31,7 @@ class CultureTests(unittest.TestCase):
         self.assertEqual(row['tgt_var'].get(), '0 (north german)')
         row['new_var'].set('GERMAN')
         pickers[1].refresh_results()
-        self.assertEqual(tuple(pickers[1]['values']), ('0 (north german)', '311 (east german)'))
+        self.assertEqual(tuple(pickers[1]['values']), ('0 (north german)', '1 (south german)', '311 (east german)'))
         row['new_var'].set('999')
         pickers[1].refresh_results()
         self.assertIn('999 (pending)', pickers[1]['values'])

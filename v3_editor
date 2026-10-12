@@ -4,6 +4,7 @@ import re
 import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from culture_tab import CultureDefinitionTab
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
@@ -64,8 +65,8 @@ class Victoria3SaveEditor:
     def __init__(self, root):
         self.root = root
         self.root.title("Victoria 3 Pop Save Editor")
-        self.root.geometry("620x620")
-        self.root.resizable(False, False)
+        self.root.geometry("800x780")
+        self.root.minsize(800, 780)
 
         # State Variables
         self.file_path = tk.StringVar()
@@ -221,10 +222,12 @@ class Victoria3SaveEditor:
             self.tab_religion, text="Add Another", command=self.add_religion_row
         )
 
+        self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES)
+
         # 4. Master Process Button
         btn_process = ttk.Button(
             self.root,
-            text="Apply Changes Directly to File",
+            text="Apply Population Changes to Selected Save",
             command=self.process_file,
         )
         btn_process.pack(pady=15)
