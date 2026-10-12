@@ -197,7 +197,8 @@ class Victoria3SaveEditor:
         self.btn_scan.config(text="Scanning file... Please wait", state="disabled")
         self.root.update_idletasks()
 
-        found_cultures = set()
+        # Dictionary to accumulate demographic sizing to handle sorting operations
+        culture_population_map = {}
         found_religions = set()
 
         pop_start_re = re.compile(r"^\s*\d+=\s*\{")
@@ -225,16 +226,27 @@ class Victoria3SaveEditor:
                             block_text = "".join(pop_lines)
                             pop_lines = []
 
-                            # Fixed Safeguard: Dependents-only blocks lack "workforce=" but always have "location=" and "type="
                             if "location=" in block_text and "type=" in block_text:
                                 loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
                                 if loc_match and loc_match.group(1) == state_id:
-                                    
+
+                                    # Calculate pop block sizing parameters
+                                    block_pop = 0
+                                    wf_match = re.search(r"^\s*workforce=(\d+)", block_text, re.MULTILINE)
+                                    dep_match = re.search(r"^\s*dependents=(\d+)", block_text, re.MULTILINE)
+
+                                    if wf_match:
+                                        block_pop += int(wf_match.group(1))
+                                    if dep_match:
+                                        block_pop += int(dep_match.group(1))
+
                                     # Harvest culture
                                     cult_match = re.search(r"^\s*culture=(\w+)", block_text, re.MULTILINE)
                                     if cult_match:
-                                        found_cultures.add(cult_match.group(1))
-                                    
+                                        cult_id = cult_match.group(1)
+                                        culture_population_map[cult_id] = culture_population_map.get(cult_id,
+                                                                                                     0) + block_pop
+
                                     # Harvest religion
                                     rel_match = re.search(r"^\s*religion=(\w+)", block_text, re.MULTILINE)
                                     if rel_match:
@@ -242,15 +254,20 @@ class Victoria3SaveEditor:
 
             self.clear_all_rows()
 
-            if found_cultures:
-                for cult in sorted(found_cultures):
+            # Sort items by structural aggregate descending order
+            sorted_cultures = [c for c, _ in
+                               sorted(culture_population_map.items(), key=lambda item: item[1], reverse=True)]
+
+            if sorted_cultures:
+                for cult in sorted_cultures:
                     self.add_culture_row(initial_target=cult)
             if found_religions:
                 for rel in sorted(found_religions):
                     if rel in self.religion_list:
                         self.add_religion_row(initial_target=rel)
 
-            messagebox.showinfo("Scan Complete", f"Successfully found {len(found_cultures)} culture(s) and {len(found_religions)} religion(s) in State {state_id}!")
+            messagebox.showinfo("Scan Complete",
+                                f"Successfully found {len(sorted_cultures)} culture(s) and {len(found_religions)} religion(s) in State {state_id}!")
 
         except Exception as e:
             messagebox.showerror("Error During Scan", f"Failed to read demographic blocks: {str(e)}")
@@ -392,7 +409,6 @@ class Victoria3SaveEditor:
                 religion_map[t] = n
 
         try:
-            # Pass 1 only counts blocks that actually contain a workforce item
             pop_counts = self.count_matching_pops(input_path, state_id, list(requested_totals.keys()))
 
             job_changes = {}
@@ -437,7 +453,6 @@ class Victoria3SaveEditor:
                         block_text = "".join(pop_lines)
                         pop_lines = []
 
-                        # Explicitly checking for "workforce=" here so dependent-only lines aren't counted in math pool divisions
                         if "workforce=" in block_text and "type=" in block_text:
                             loc_match = re.search(r"^\s*location=(\d+)", block_text, re.MULTILINE)
                             if loc_match and loc_match.group(1) == target_state:
@@ -485,7 +500,6 @@ class Victoria3SaveEditor:
     def modify_pop_block(self, lines, target_state, job_changes, culture_map, religion_map):
         block_text = "".join(lines)
 
-        # Structural Safety Check modified to include dependent-only blocks
         if "location=" not in block_text or "type=" not in block_text:
             return lines
 
@@ -500,7 +514,6 @@ class Victoria3SaveEditor:
         for line in lines:
             stripped = line.strip()
 
-            # 1. Workforce modification
             if stripped.startswith("workforce=") and job_changes and pop_job:
                 if pop_job in job_changes and job_changes[pop_job] != 0:
                     try:
@@ -510,14 +523,12 @@ class Victoria3SaveEditor:
                     except ValueError:
                         pass
 
-            # 2. Culture Swap (Now catches dependent-only blocks!)
             elif stripped.startswith("culture=") and culture_map:
                 current_cult = stripped.split("=")[1].strip()
                 if current_cult in culture_map:
                     indent = line[: line.find("culture=")]
                     line = f"{indent}culture={culture_map[current_cult]}\n"
 
-            # 3. Religion Swap (Now catches dependent-only blocks!)
             elif stripped.startswith("religion=") and religion_map:
                 current_rel = stripped.split("=")[1].strip()
                 if current_rel in religion_map:
