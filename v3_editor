@@ -11,6 +11,7 @@ from homeland_tab import HomelandTab
 from state_resource_tab import StateResourceTab
 from shortage_autofill import ShortageAutofill
 from autocomplete import LiveSuggestions
+from state_culture_index import StateCultureIndex
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
@@ -37,9 +38,10 @@ def culture_id_from_input(value):
 class CulturePicker(ttk.Combobox):
     """Editable ID/name search; dropdown labels never enter the save file."""
 
-    def __init__(self, parent, variable):
+    def __init__(self, parent, variable, allowed_ids=None):
         super().__init__(parent, textvariable=variable, width=21, state="normal")
         self.variable = variable
+        self.allowed_ids = allowed_ids
         self.configure(postcommand=self.refresh_results)
         self.bind("<KeyRelease>", self.refresh_results)
         self.bind("<<ComboboxSelected>>", self.format_selection)
@@ -49,10 +51,11 @@ class CulturePicker(ttk.Combobox):
 
     def refresh_results(self, event=None):
         query = self.variable.get().strip().casefold()
-        results = [culture_label(cid) for cid, name in CULTURE_NAMES.items()
+        choices = CULTURE_NAMES if self.allowed_ids is None else {cid: CULTURE_NAMES.get(cid, 'pending') for cid in sorted(self.allowed_ids(), key=lambda value: (not value.isdecimal(), int(value) if value.isdecimal() else value))}
+        results = [culture_label(cid) for cid, name in choices.items()
                    if query in cid.casefold() or query in name.casefold()
                    or query == culture_label(cid).casefold()]
-        if query.isdecimal() and query not in CULTURE_NAMES:
+        if self.allowed_ids is None and query.isdecimal() and query not in CULTURE_NAMES:
             results.insert(0, culture_label(query))
         self.configure(values=results)
 
@@ -123,8 +126,23 @@ class Victoria3SaveEditor:
         # Dynamic Row Lists
         self.culture_rows = []
         self.religion_rows = []
+        self.available_state_cultures = set()
+        self.state_culture_pickers = []
 
         self.create_widgets()
+        self.state_culture_index = StateCultureIndex(self)
+
+    def set_state_cultures(self, ids):
+        self.available_state_cultures = set(ids)
+        self.state_culture_pickers = [picker for picker in self.state_culture_pickers if picker.winfo_exists()]
+        for picker in self.state_culture_pickers:
+            picker.suggestions.hide()
+            picker.refresh_results()
+
+    def state_culture_picker(self, parent, variable):
+        picker = CulturePicker(parent, variable, lambda: self.available_state_cultures)
+        self.state_culture_pickers.append(picker)
+        return picker
 
     def create_widgets(self):
         # 1. File Selection Frame
@@ -212,7 +230,7 @@ class Victoria3SaveEditor:
         scale_row = ttk.Frame(scale_frame)
         scale_row.pack(fill="x")
         ttk.Label(scale_row, text="Culture:").pack(side="left")
-        CulturePicker(scale_row, self.scale_culture).pack(side="left", padx=5)
+        self.state_culture_picker(scale_row, self.scale_culture).pack(side="left", padx=5)
         ttk.Label(scale_row, text="Change %:").pack(side="left")
         ttk.Entry(scale_row, textvariable=self.scale_percent, width=9).pack(side="left", padx=5)
         ttk.Button(scale_row, text="Apply Percentage", command=self.apply_culture_percentage).pack(side="left")
@@ -386,7 +404,7 @@ class Victoria3SaveEditor:
 
         lbl1 = ttk.Label(row_frame, text="Target ID:")
         lbl1.pack(side="left", padx=2)
-        ent1 = CulturePicker(row_frame, tgt_var)
+        ent1 = self.state_culture_picker(row_frame, tgt_var)
         ent1.pack(side="left", padx=5)
 
         lbl2 = ttk.Label(row_frame, text="New ID:")
@@ -509,6 +527,7 @@ class Victoria3SaveEditor:
 
             self.stream_edit_save(input_path, state_id, job_changes, culture_map, religion_map)
             self.shortage_autofill.cache = None
+            self.state_culture_index.changed()
             messagebox.showinfo("Success", "File modified successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
@@ -568,6 +587,7 @@ class Victoria3SaveEditor:
             stats = self.stream_edit_save(path, str(int(state)), {}, {}, {},
                                           (culture, Decimal(1) + percent / 100))
             self.shortage_autofill.cache = None
+            self.state_culture_index.changed()
             self.scale_status.set(f"Population changed from {stats['before']:,} to {stats['after']:,} across {stats['groups']} groups. Backup created beside the save.")
         except (ValueError, InvalidOperation, OSError) as exc:
             messagebox.showerror("Cannot Change Population", str(exc))
