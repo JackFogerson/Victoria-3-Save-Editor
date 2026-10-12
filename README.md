@@ -33,3 +33,9 @@ These are initial game-history changes for new games, not edits to the current s
 State Editor always uses the State ID entered at the top and resolves it through the selected save, just like State Homelands. Click Load State. The editor searches the region folder for the matching file and shows its name.
 
 Change arable land directly. Add/remove arable building keys. Select a capped building, enter a level, and click Add / Update; the same controls add new capped buildings, and Remove deletes the selected entry. Search suggestions come from the selected folder, and manual building keys remain supported. Levels must be non-negative whole numbers. Click Save State Resources to write the loaded region's changed fields and create a dated backup. Other regions, provinces, traits, and discoverable-resource definitions are preserved. These edits affect game map definitions for new games, not the selected save.
+
+## Experimental qualification shortage report
+
+Run `python -B shortage_estimator.py "path/to/save.v3"`. It writes Markdown and JSON reports under `reports/` without changing the save. Use `--game "path/to/game"` for another installation.
+
+The estimate compares each active building's production-method employment capacity with workers assigned to its workplace, then subtracts saved employable qualifications. Vacancies corresponds to the tooltip's “needed” number; estimated shortfall subtracts available qualifications. Profession indices are inferred from aggregate workforce and checked against pop counts. Unknown production methods and unsupported employment modifiers are reported. Country/state/building modifiers, mod load order, hiring restrictions, and rounding are not fully modeled. Check results in-game before using them to add population; the calculator does not autofill or apply changes yet.

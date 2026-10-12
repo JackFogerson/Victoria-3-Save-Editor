@@ -3,3 +3,5 @@ __pycache__/
 *.bak
 *.v3
 *.tmp
+reports/
+shortage_estimates.json
