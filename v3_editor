@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from culture_tab import CultureDefinitionTab
 from homeland_tab import HomelandTab
+from state_resource_tab import StateResourceTab
 from autocomplete import LiveSuggestions
 
 
@@ -226,6 +227,7 @@ class Victoria3SaveEditor:
 
         self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES)
         self.homeland_tab = HomelandTab(notebook, self, CULTURE_NAMES)
+        self.state_resource_tab = StateResourceTab(notebook, self)
 
         # 4. Master Process Button
         btn_process = ttk.Button(

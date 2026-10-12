@@ -27,3 +27,9 @@ Select a text save, enter its State ID in the top field, then open State Homelan
 Search cultures by ID or name and click Add Homeland, or select existing homelands and click Remove Selected. A culture key such as `north_german` can also be entered directly, including modded keys. Unknown numeric IDs are rejected because history files require culture keys. Save State Homelands creates a dated backup and edits only that region's homeland entries. Changing the selected save or State ID requires reloading before saving.
 
 These are initial game-history changes for new games, not edits to the current save. A region's homelands apply to all its split-state portions. Browse supports alternate installations or writable copies; Windows may require permission to write into the game folder.
+
+## State resources
+
+In State Editor, choose Save State ID to resolve the top State ID through the selected save, or Map Region ID to use the map definition's explicit `id` (for example, New York is 267). Click Load State. The editor searches the region folder for the matching file and shows its name.
+
+Change arable land directly. Add/remove arable building keys. Select a capped building, enter a level, and click Add / Update; the same controls add new capped buildings, and Remove deletes the selected entry. Search suggestions come from the selected folder, and manual building keys remain supported. Levels must be non-negative whole numbers. Click Save State Resources to write the loaded region's changed fields and create a dated backup. Other regions, provinces, traits, and discoverable-resource definitions are preserved. These edits affect game map definitions for new games, not the selected save.
