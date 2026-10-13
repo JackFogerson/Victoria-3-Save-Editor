@@ -64,9 +64,9 @@ Advanced On Enactment and On Removal tabs edit effect scripts. Script structure 
 
 ## Mass migration events (experimental)
 
-Select a text save, open Mass Migration, and click Load Migration Choices from Save. Choose the migrating culture, source country, destination state, and duration in days. Choices use IDs from that save, including modded culture keys. The top State ID is used as the initial destination when available. The start date comes from the save; 1461 days defaults to roughly four years.
+Select a text save and open Mass Migration. Choices load automatically when the selected save changes, including after applying an edit. All three fields suggest matches as you type: culture ID/name, source country ID/tag, and destination state ID/name. Click a suggestion or use the arrow keys and Enter; numeric IDs can also be entered directly. Load Migration Choices from Save remains available for a manual refresh. Choices use IDs from that save, including modded culture keys. The top State ID is used as the initial destination when available. The start date comes from the save; 1461 days defaults to roughly four years.
 
-Create Mass Migration writes the destination state's `mass_migration` record and a linked entry in the culture's `migration` list. Existing culture migrations are preserved. A dated backup is created; other bytes remain unchanged. Occupied destinations, same-country origins, duplicates, and stale save data are rejected. Source country is used because the game effect does not identify one origin state.
+Create Mass Migration writes the destination state's `mass_migration` record and a linked entry in the culture's `migration` list. Existing culture migrations are preserved. No backup is created for migration edits; the completed edit replaces the selected save, leaving other bytes unchanged. Occupied destinations, same-country origins, duplicates, and stale save data are rejected. Source country is used because the game effect does not identify one origin state.
 
 Reload the edited save and unpause to test activation. This mirrors a migration observed in a local save, but has not been validated by running a newly inserted event in-game. Eligibility, movement rates, and outcome are controlled by the game; no population is moved instantly. Reload choices before creating another event.
 

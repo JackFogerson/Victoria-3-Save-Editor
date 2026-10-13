@@ -14,8 +14,9 @@ class MigrationTab(ttk.Frame):
         self.editor, self.names = editor, names
         self.index = None
         self.busy = False
+        self.reload_requested = False
         self.results = queue.Queue()
-        self.status = tk.StringVar(value='Select a save above, then load its migration choices.')
+        self.status = tk.StringVar(value='Select a save above. Migration choices load automatically.')
         self.days = tk.StringVar(value='1461')
         self.choices, self.variables, self.pickers, self.suggestions = {}, {}, {}, []
         ttk.Label(self, text='Create an active mass-migration event in the selected save. The game controls population movement.').pack(anchor='w', pady=5)
@@ -33,10 +34,38 @@ class MigrationTab(ttk.Frame):
         ttk.Label(row, text='Duration in days:', width=22).pack(side='left')
         ttk.Entry(row, textvariable=self.days, width=10).pack(side='left')
         ttk.Label(row, text='Starts on the save’s current game date. 1461 days is about four years.').pack(side='left', padx=8)
-        ttk.Label(self, text='Experimental save event: reload the edited save and unpause to verify activation.\nExisting migrations are preserved; occupied destinations are rejected. No people are transferred instantly.\nA dated backup is created before writing both linked records.', wraplength=900).pack(anchor='w', pady=12)
+        ttk.Label(self, text='Experimental save event: reload the edited save and unpause to verify activation.\nExisting migrations are preserved; occupied destinations are rejected. No people are transferred instantly.\nUpdates the selected save without creating a backup.', wraplength=900).pack(anchor='w', pady=12)
         self.button = ttk.Button(self, text='Create Mass Migration in Save', command=self.create, state='disabled')
         self.button.pack(anchor='w', pady=8)
         ttk.Label(self, textvariable=self.status, wraplength=900).pack(anchor='w', pady=8)
+        self.file_trace = editor.file_path.trace_add('write', self.save_changed)
+        self.pending = self.after_idle(self.save_changed)
+        self.bind('<Destroy>', self.cleanup, add='+')
+
+    def cleanup(self, event):
+        if event.widget == self:
+            self.editor.file_path.trace_remove('write', self.file_trace)
+            if self.pending is not None:
+                self.after_cancel(self.pending)
+
+    def cancel_pending(self):
+        if self.pending is not None:
+            self.after_cancel(self.pending)
+            self.pending = None
+
+    def save_changed(self, *_):
+        if not self.busy:
+            self.cancel_pending()
+        self.index = None
+        self.button.configure(state='disabled')
+        for key in self.choices:
+            self.choices[key] = {}
+            self.variables[key].set('')
+            self.search(key)
+        if self.busy:
+            self.reload_requested = True
+        elif Path(self.editor.file_path.get()).is_file():
+            self.load()
 
     def search(self, key):
         query = self.variables[key].get().strip().casefold()
@@ -54,15 +83,18 @@ class MigrationTab(ttk.Frame):
             except Exception as exc: index, error = None, str(exc)
             self.results.put((path, index, error))
         threading.Thread(target=work, daemon=True).start()
-        self.after(100, self.poll)
+        self.pending = self.after(100, self.poll)
 
     def poll(self):
+        self.pending = None
         try: path, index, error = self.results.get_nowait()
         except queue.Empty:
-            self.after(100, self.poll); return
+            self.pending = self.after(100, self.poll); return
         self.busy = False
-        if path != self.editor.file_path.get():
-            self.status.set('Selected save changed. Load its migration choices.'); return
+        if self.reload_requested or path != self.editor.file_path.get():
+            self.reload_requested = False
+            self.save_changed()
+            return
         if error:
             self.status.set('Could not load migration choices: ' + error); return
         self.populate(index)
@@ -73,10 +105,13 @@ class MigrationTab(ttk.Frame):
         self.choices['source'] = {f'{cid} ({item["name"]})': cid for cid, item in index['countries'].items()}
         self.choices['destination'] = {f'{sid} ({item["name"].removeprefix("STATE_").replace("_", " ").title()}) — {index["countries"].get(item["country"], {}).get("name", item["country"])}': sid for sid, item in index['states'].items()}
         for key in self.choices:
-            self.variables[key].set(''); self.search(key)
+            self.search(key)
         current = self.editor.state_id.get().strip()
         for label, sid in self.choices['destination'].items():
-            if sid == current: self.variables['destination'].set(label); break
+            if sid == current and not self.variables['destination'].get():
+                self.variables['destination'].set(label); break
+        for suggestion in self.suggestions:
+            suggestion.show()
         self.button.configure(state='normal')
         self.status.set(f'Loaded {Path(index["path"]).name}, dated {index["date"]}. Choose a culture, origin country, and destination.')
 
@@ -93,11 +128,11 @@ class MigrationTab(ttk.Frame):
                 raise ValueError('Selected save changed. Load its migration choices first.')
             culture, source, destination = (self.resolve(key) for key in ('culture', 'source', 'destination'))
             days = int(self.days.get())
-            backup, expiry = create_migration(self.index, culture, source, destination, days)
+            expiry = create_migration(self.index, culture, source, destination, days)
         except (OSError, ValueError, OverflowError) as exc:
             messagebox.showerror('Cannot Create Migration', str(exc)); return
         self.button.configure(state='disabled')
         self.editor.shortage_autofill.cache = None
         self.editor.state_culture_index.changed()
         self.editor.select_latest_save()
-        self.status.set(f'Created migration to State {destination}, expiring {expiry}. Backup: {backup.name}. Reload the save in-game to verify; reload choices before creating another event.')
+        messagebox.showinfo('Migration Created', f'Created migration to State {destination}, expiring {expiry}. No backup was created. Reload the save in-game to verify.')

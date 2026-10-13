@@ -1,6 +1,6 @@
 """Create linked mass-migration save records, without moving population."""
 from pathlib import Path
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 import os
 import re
 import shutil
@@ -143,7 +143,6 @@ def create_migration(index, culture_id, source_id, destination_id, days):
         state_text, culture_text = read_span(state_span), read_span(culture_span)
     state_text, culture_text, expiry = updated_records(state_text, culture_text, culture_id, source_id, destination_id, index['date'], days)
     edits = sorted([(state_span, state_text.encode('utf-8')), (culture_span, culture_text.encode('utf-8'))])
-    backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
     temporary = None
     try:
         with path.open('rb') as source, tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + '.', suffix='.tmp', delete=False) as target:
@@ -157,8 +156,7 @@ def create_migration(index, culture_id, source_id, destination_id, days):
                 source.seek(end); target.write(data)
             shutil.copyfileobj(source, target)
         if signature(path) != index['signature']: raise ValueError('Save changed while preparing migration; nothing applied.')
-        shutil.copy2(path, backup)
         os.replace(temporary, path)
-        return backup, expiry
+        return expiry
     finally:
         if temporary and os.path.exists(temporary): os.unlink(temporary)

@@ -1,6 +1,10 @@
 from pathlib import Path
 import tempfile
 import unittest
+import time
+import tkinter as tk
+from tkinter import ttk
+from types import SimpleNamespace
 from mass_migration import index_save, create_migration, updated_records, field
 
 
@@ -43,15 +47,53 @@ unrelated={ data="keep this" }
 
 
 class MigrationTests(unittest.TestCase):
-    def test_atomic_linked_records_backup_and_duplicate_rejection(self):
+    def test_choices_load_automatically_and_all_three_fields_autocomplete(self):
+        from migration_tab import MigrationTab
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path = Path(folder) / 'save.v3'
+            path.write_text(SAVE)
+            root = tk.Tk()
+            try:
+                editor = SimpleNamespace(file_path=tk.StringVar(), state_id=tk.StringVar())
+                notebook = ttk.Notebook(root); notebook.pack(fill='both', expand=True)
+                tab = MigrationTab(notebook, editor, {'25': 'French'})
+                root.update()
+                editor.file_path.set(str(path))
+                deadline = time.monotonic() + 10
+                while tab.index is None and time.monotonic() < deadline:
+                    root.update()
+                    time.sleep(0.01)
+                self.assertIsNotNone(tab.index)
+                for key, query, expected in [('culture', 'fren', '25'), ('source', 'fra', '1'), ('destination', 'dest', '20')]:
+                    picker = tab.pickers[key]
+                    picker.focus_force(); root.update()
+                    picker.insert(0, query); root.update()
+                    suggestion = tab.suggestions[list(tab.pickers).index(key)]
+                    self.assertTrue(suggestion.popup.winfo_viewable(), key)
+                    self.assertEqual(suggestion.list.size(), 1)
+                    picker.event_generate('<Return>'); root.update()
+                    self.assertEqual(tab.resolve(key), expected)
+                    tab.variables[key].set(expected); root.update()
+                    self.assertEqual(tab.resolve(key), expected)
+                # The newest-save refresh may write the same path again.
+                editor.file_path.set(str(path))
+                self.assertIsNone(tab.index)
+                deadline = time.monotonic() + 10
+                while tab.index is None and time.monotonic() < deadline:
+                    root.update(); time.sleep(0.01)
+                self.assertIsNotNone(tab.index)
+            finally:
+                root.destroy()
+
+    def test_atomic_linked_records_without_backup_and_duplicate_rejection(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             path = Path(folder) / 'save.v3'
             original = SAVE.replace('\n', '\r\n').encode()
             path.write_bytes(original)
             index = index_save(path)
-            backup, expiry = create_migration(index, '25', '1', '20', 366)
+            expiry = create_migration(index, '25', '1', '20', 366)
             self.assertEqual(expiry, '1837.1.1')
-            self.assertEqual(backup.read_bytes(), original)
+            self.assertEqual(list(Path(folder).iterdir()), [path])
             changed = path.read_bytes().decode()
             self.assertIn('\t\tculture=25\r\n\t\tcountry=1', changed)
             self.assertIn('\t\t\tstate=20', changed)
