@@ -4,7 +4,7 @@ from tkinter import ttk, filedialog, messagebox
 from autocomplete import LiveSuggestions
 from culture_definitions import definitions, save_changes
 from state_homelands import resolve_state
-from state_resources import DEFAULT_REGION_FOLDER, scan_regions, resource_values, replace_resources, nonnegative
+from state_resources import DEFAULT_REGION_FOLDER, scan_regions, resource_values, replace_resources, nonnegative, undiscovered_resources
 
 
 class StateResourceTab(ttk.Frame):
@@ -13,6 +13,8 @@ class StateResourceTab(ttk.Frame):
         notebook.add(self, text='State Editor')
         self.editor = editor
         self.region = None
+        self.undiscovered = {}
+        self.converted = set()
         self.folder = tk.StringVar(value=str(DEFAULT_REGION_FOLDER))
         self.land = tk.StringVar(value='0')
         self.status = tk.StringVar(value='Select a save and enter its State ID above, then load the state.')
@@ -25,6 +27,8 @@ class StateResourceTab(ttk.Frame):
         ttk.Label(row, text='Arable land:').pack(side='left')
         ttk.Entry(row, textvariable=self.land, width=10).pack(side='left', padx=4)
         ttk.Label(self, textvariable=self.status, wraplength=740).pack(anchor='w', pady=4)
+        self.discovery_status = tk.StringVar(value='Undiscovered resources will appear after loading a state.')
+        ttk.Label(self, textvariable=self.discovery_status, wraplength=900).pack(anchor='w', pady=4)
         columns = ttk.Frame(self); columns.pack(fill='both', expand=True)
         self.queries, self.pickers, self.options, self.suggestions = {}, {}, {}, []
         self.lists = {}
@@ -54,13 +58,20 @@ class StateResourceTab(ttk.Frame):
             ttk.Button(row, text='Remove', command=lambda k=key: self.remove(k)).pack(side='left')
         self.save_button = ttk.Button(self, text='Save State Resources (creates backup)', command=self.save, state='disabled')
         self.save_button.pack(anchor='w', pady=6)
+        self.queries['capped_resources'].trace_add('write', self.suggest_discovery_level)
+
+    def suggest_discovery_level(self, *args):
+        name = self.queries['capped_resources'].get().strip()
+        if self.region is not None and name in self.undiscovered and name not in self.converted:
+            total = int(self.capped.get(name, '0')) + self.undiscovered[name]
+            self.level.set(str(total))
 
     def search(self, key):
         query = self.queries[key].get().casefold()
         self.pickers[key].configure(values=[name for name in self.options[key] if query in name.casefold()])
 
     def values(self):
-        return {'arable_land': self.land.get(), 'arable_resources': list(self.arable), 'capped_resources': dict(self.capped)}
+        return {'arable_land': self.land.get(), 'arable_resources': list(self.arable), 'capped_resources': dict(self.capped), 'discover_resources': sorted(self.converted)}
 
     def discard(self):
         return self.region is None or self.values() == self.initial or messagebox.askyesno('Unsaved State Changes', 'Discard unsaved state resource changes?')
@@ -99,6 +110,8 @@ class StateResourceTab(ttk.Frame):
         self.original, self.text = original, text
         self.land.set(values['arable_land'])
         self.arable, self.capped = values['arable_resources'], values['capped_resources']
+        self.undiscovered = undiscovered_resources(definitions(text)[region])
+        self.converted = set()
         self.initial = self.values()
         self.options = {'arable_resources': arable_options, 'capped_resources': capped_options}
         for key in self.queries:
@@ -111,13 +124,18 @@ class StateResourceTab(ttk.Frame):
         for box in self.lists.values(): box.delete(0, 'end')
         for name in self.arable: self.lists['arable_resources'].insert('end', name)
         for name, level in self.capped.items(): self.lists['capped_resources'].insert('end', f'{name} = {level}')
+        remaining = {name: amount for name, amount in self.undiscovered.items() if name not in self.converted}
+        text = ', '.join(f'{name} = {amount}' for name, amount in remaining.items()) or 'none'
+        pending = ', '.join(sorted(self.converted))
+        self.discovery_status.set('Undiscovered: ' + text + '. Add one as capped to convert it; Level is the final capped total.' + (' Pending conversion: ' + pending if pending else ''))
 
     def select(self, key):
         indices = self.lists[key].curselection()
         if self.region is None or not indices: return
         name = (self.arable if key == 'arable_resources' else list(self.capped))[indices[0]]
         self.queries[key].set(name)
-        if key == 'capped_resources': self.level.set(self.capped[name])
+        if key == 'capped_resources':
+            self.level.set(str(int(self.capped[name]) + (self.undiscovered.get(name, 0) if name not in self.converted else 0)))
 
     def add(self, key):
         if self.region is None:
@@ -126,7 +144,9 @@ class StateResourceTab(ttk.Frame):
         name = self.queries[key].get().strip()
         try:
             if not re.fullmatch(r'building_\w+', name): raise ValueError('Enter a building key, such as building_iron_mine.')
-            if key == 'capped_resources': self.capped[name] = nonnegative(self.level.get())
+            if key == 'capped_resources':
+                self.capped[name] = nonnegative(self.level.get())
+                if name in self.undiscovered: self.converted.add(name)
             elif name not in self.arable: self.arable.append(name)
         except ValueError as exc:
             messagebox.showerror('Invalid Resource', str(exc)); return
@@ -137,7 +157,10 @@ class StateResourceTab(ttk.Frame):
         indices = self.lists[key].curselection()
         if indices:
             if key == 'arable_resources': del self.arable[indices[0]]
-            else: del self.capped[list(self.capped)[indices[0]]]
+            else:
+                name = list(self.capped)[indices[0]]
+                del self.capped[name]
+                self.converted.discard(name)
             self.refresh()
 
     def save(self):
@@ -148,6 +171,7 @@ class StateResourceTab(ttk.Frame):
             values = self.values()
             values['arable_land'] = nonnegative(values['arable_land'])
             changes = {key: value for key, value in values.items() if value != self.initial[key]}
+            if self.converted: changes['capped_resources'] = values['capped_resources']
             if not changes: return
             updated = replace_resources(self.text, self.region, changes)
             encoded = (b'\xef\xbb\xbf' if self.original.startswith(b'\xef\xbb\xbf') else b'') + updated.encode('utf-8')
@@ -156,6 +180,9 @@ class StateResourceTab(ttk.Frame):
             messagebox.showerror('Cannot Save State', str(exc)); return
         self.original, self.text = encoded, updated
         self.land.set(values['arable_land'])
+        self.undiscovered = undiscovered_resources(definitions(updated)[self.region])
+        self.converted.clear()
         self.initial = self.values()
+        self.refresh()
         self.status.set(f'Saved {self.region}. Backup: {backup.name}')
         self.editor.select_latest_save()

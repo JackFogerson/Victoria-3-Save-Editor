@@ -5,7 +5,7 @@ from tkinter import ttk
 import unittest
 from unittest.mock import Mock, patch
 from culture_definitions import definitions
-from state_resources import scan_regions, resource_values, replace_resources
+from state_resources import scan_regions, resource_values, replace_resources, undiscovered_resources
 from state_resource_tab import StateResourceTab
 
 SOURCE = '''STATE_NEW_YORK = {
@@ -45,7 +45,7 @@ class StateResourceTests(unittest.TestCase):
             path.write_bytes(original)
             regions, arable, capped = scan_regions(folder)
             self.assertEqual(regions['STATE_NEW_YORK'][1], '267')
-            self.assertEqual(capped, ['building_iron_mine'])
+            self.assertEqual(capped, ['building_iron_mine', 'building_oil_rig'])
             save = Path(folder) / 'sample.v3'
             save.write_text('states={\n database={\n 42={ region="STATE_NEW_YORK" }\n }\n}\n')
             editor = Mock(state_id=tk.StringVar(value='42'), file_path=tk.StringVar(value=str(save)))
@@ -64,6 +64,36 @@ class StateResourceTests(unittest.TestCase):
             self.assertEqual(resource_values(definitions(path.read_text(encoding='utf-8-sig'))['STATE_NEW_YORK']), {
                 'arable_land': '250', 'arable_resources': ['building_rice_farm'], 'capped_resources': {'building_iron_mine': '60'}})
             self.assertEqual(next(Path(folder).glob('*.bak')).read_bytes(), original)
+            tab.queries['capped_resources'].set('building_oil_rig')
+            self.assertEqual(tab.level.get(), '20')
+            tab.add('capped_resources')
+            self.assertEqual(tab.capped['building_oil_rig'], '20')
+            tab.save()
+            block = definitions(path.read_text(encoding='utf-8-sig'))['STATE_NEW_YORK']
+            self.assertEqual(resource_values(block)['capped_resources']['building_oil_rig'], '20')
+            self.assertEqual(undiscovered_resources(block), {})
+            tab.queries['capped_resources'].set('building_oil_rig')
+            tab.level.set('25'); tab.add('capped_resources'); tab.save()
+            self.assertEqual(resource_values(definitions(path.read_text(encoding='utf-8-sig'))['STATE_NEW_YORK'])['capped_resources']['building_oil_rig'], '25')
+
+    def test_conversion_preserves_other_discoveries_and_combines_matching_entries(self):
+        source = SOURCE.replace('STATE_OTHER = { id = 1 }', '''STATE_OTHER = { id = 1 }
+STATE_DISCOVER = {
+ id = 2
+ capped_resources = { building_oil_rig = 5 }
+ resource = { type = "building_oil_rig" undiscovered_amount = 20 }
+ resource = { type = "building_oil_rig" undiscovered_amount = 10 }
+ resource = { type = "building_gold_field" depleted_type = "building_gold_mine" undiscovered_amount = 2 }
+}''')
+        self.assertEqual(undiscovered_resources(definitions(source)['STATE_DISCOVER']), {'building_oil_rig': 30, 'building_gold_field': 2})
+        changed = replace_resources(source, 'STATE_DISCOVER', {'capped_resources': {'building_oil_rig': '35'}, 'discover_resources': ['building_oil_rig']})
+        block = definitions(changed)['STATE_DISCOVER']
+        self.assertEqual(undiscovered_resources(block), {'building_gold_field': 2})
+        self.assertEqual(resource_values(block)['capped_resources'], {'building_oil_rig': '35'})
+        self.assertIn('depleted_type = "building_gold_mine"', changed)
+        self.assertTrue(changed.startswith(SOURCE.split('STATE_OTHER')[0]))
+        with self.assertRaises(ValueError):
+            replace_resources(source, 'STATE_DISCOVER', {'capped_resources': {}, 'discover_resources': ['building_oil_rig']})
 
 
 if __name__ == '__main__': unittest.main()

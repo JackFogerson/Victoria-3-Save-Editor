@@ -6,6 +6,18 @@ from culture_definitions import definitions
 DEFAULT_REGION_FOLDER = Path(r'C:\Program Files (x86)\Steam\steamapps\common\Victoria 3\game\map_data\state_regions')
 
 
+def undiscovered_resources(block):
+    amounts = {}
+    for entry in block.children:
+        if entry.key != 'resource' or entry.children is None: continue
+        fields = {f.key: f for f in entry.children}
+        if 'type' in fields and 'undiscovered_amount' in fields:
+            name = fields['type'].value.strip('"')
+            amount = int(nonnegative(fields['undiscovered_amount'].value))
+            amounts[name] = amounts.get(name, 0) + amount
+    return amounts
+
+
 def resource_values(block):
     fields = {f.key: f for f in block.children}
     return {
@@ -28,6 +40,7 @@ def scan_regions(folder):
             values = resource_values(block)
             arable.update(values['arable_resources'])
             capped.update(values['capped_resources'])
+            capped.update(undiscovered_resources(block))
     if not regions:
         raise ValueError('No state region definitions found in this folder.')
     return regions, sorted(arable), sorted(capped)
@@ -44,7 +57,18 @@ def replace_resources(text, region, changes):
     fields = {f.key: f for f in block.children}
     newline = '\r\n' if '\r\n' in text else '\n'
     edits, additions = [], []
+    discover = set(changes.get('discover_resources', []))
+    if discover:
+        capped = changes.get('capped_resources', {})
+        if not discover <= set(capped):
+            raise ValueError('Converted resources must have a capped-resource level.')
+        for entry in block.children:
+            if entry.key != 'resource' or entry.children is None: continue
+            resource = {f.key: f for f in entry.children}
+            if 'type' in resource and 'undiscovered_amount' in resource and resource['type'].value.strip('"') in discover:
+                edits.append((entry.start, entry.end, ''))
     for key, value in changes.items():
+        if key == 'discover_resources': continue
         if key == 'arable_land':
             encoded = nonnegative(value)
         elif key in ('arable_resources', 'capped_resources'):

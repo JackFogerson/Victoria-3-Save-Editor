@@ -75,3 +75,9 @@ Reload the edited save and unpause to test activation. This mirrors a migration 
 The editor selects the most recently modified `.v3` file in your Victoria 3 save-games folder at startup and checks again after successful Apply/Save actions. Backups and temporary files are excluded. Browse remains available for manual selection. “Most recent” uses filesystem modification time, including edits made by this editor.
 
 The top State ID field suggests `ID (State Name)` while typing an ID or name. Names come from the selected save and load in the background. Selecting a result keeps the numeric ID internally for every tab. Culture percentage changes affect each matching population group individually, across all professions and religions, including both workers and dependents within the selected state.
+
+## Undiscovered resources
+
+State Editor also scans `resource` blocks with `undiscovered_amount`. The installed files contain three types: oil rigs (150 entries, 4,757 levels), rubber plantations (108 entries, 1,779 levels), and gold fields (46 entries, 360 levels). These building keys are included in capped-resource suggestions, even in regions without an undiscovered entry.
+
+Loading a state displays its undiscovered amounts. Selecting a matching capped-resource key suggests existing capped levels plus all undiscovered levels of that type. Level is the final capped total and remains editable. Add / Update stages conversion; Save State Resources removes matching undiscovered resource blocks and writes the capped value with a backup. Other resource types stay unchanged. Removing a staged capped entry cancels its pending conversion. A gold-field conversion uses `building_gold_field`, not `building_gold_mine`; the converted resource block, including any depletion metadata, is removed.
