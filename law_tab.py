@@ -1,4 +1,5 @@
 from pathlib import Path
+from decimal import Decimal
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from autocomplete import LiveSuggestions
@@ -11,6 +12,7 @@ class LawTab(ttk.Frame):
         super().__init__(notebook, padding=10)
         notebook.add(self, text='Laws')
         self.loaded = None
+        self.institution_base = {}
         self.on_saved = on_saved
         self.folder = tk.StringVar(value=str(DEFAULT_LAWS))
         self.query = tk.StringVar()
@@ -71,7 +73,12 @@ class LawTab(ttk.Frame):
         return {'modifier': dict(self.modifiers), 'institution_modifier': dict(self.institution_modifiers), **{key: box.get('1.0', 'end-1c') for key, box in self.scripts.items()}}
 
     def active_modifiers(self):
-        return self.modifiers if self.scope.get() == 'Law effects' else self.institution_modifiers
+        if self.scope.get() == 'Law effects':
+            return self.modifiers
+        combined = dict(self.institution_base)
+        for key, value in self.institution_modifiers.items():
+            combined[key] = format(Decimal(combined[key]) + Decimal(value), 'f') if key in combined else value
+        return combined
 
     def change_scope(self, event=None):
         self.effect.set(''); self.value.set(''); self.refresh()
@@ -93,7 +100,7 @@ class LawTab(ttk.Frame):
         self.laws, self.options = laws, options
         self.labels = {name.removeprefix('law_').replace('_', ' ').title() + ' (' + name + ')': name for name in sorted(laws)}
         self.loaded = None; self.query.set(''); self.search_laws()
-        self.modifiers = {}; self.institution_modifiers = {}; self.refresh()
+        self.modifiers = {}; self.institution_modifiers = {}; self.institution_base = {}; self.refresh()
         self.institution_info.set('')
         for box in self.scripts.values(): box.delete('1.0', 'end')
         self.save_button.configure(state='disabled')
@@ -122,8 +129,9 @@ class LawTab(ttk.Frame):
         self.loaded, self.path, self.original, self.text = name, path, original, text
         self.modifiers = values['modifier']
         self.institution_modifiers = values['institution_modifier']
+        self.institution_base = base
         self.scope.set('Institution effects per level' if institution else 'Law effects')
-        self.institution_info.set((institution + ': base per level: ' + (', '.join(f'{k} = {v}' for k, v in base.items()) or 'none') + '\nEntries below add to the base for this law only (e.g. base 0.2 plus 0.1 = 0.3 per level).') if institution else 'This law does not enable an institution. Use Law effects for ongoing modifiers.')
+        self.institution_info.set((institution + ': edit the total effect per level, including inherited effects.\nChanges apply to this law only. Removing an inherited effect sets its total to zero.') if institution else 'This law does not enable an institution. Use Law effects for ongoing modifiers.')
         for key, box in self.scripts.items():
             box.delete('1.0', 'end'); box.insert('1.0', values[key])
         self.initial = self.values(); self.effect.set(''); self.value.set(''); self.refresh()
@@ -145,11 +153,26 @@ class LawTab(ttk.Frame):
             messagebox.showerror('Invalid Effect', str(exc)); return
         if self.scope.get() != 'Law effects' and not institution_base(self.folder.get(), self.text, self.loaded)[0]:
             messagebox.showerror('No Institution', 'This law does not enable an institution. Choose Law effects.'); return
-        self.active_modifiers()[key] = value; self.refresh()
+        if self.scope.get() == 'Law effects':
+            self.modifiers[key] = value
+        else:
+            if key in self.institution_base:
+                if value in ('yes', 'no'):
+                    messagebox.showerror('Invalid Effect', 'This inherited effect requires a numeric total.'); return
+                value = format(Decimal(value) - Decimal(self.institution_base[key]), 'f')
+            self.institution_modifiers[key] = value
+        self.refresh()
 
     def remove(self):
         if self.loaded and self.tree.selection():
-            del self.active_modifiers()[self.tree.selection()[0]]; self.refresh()
+            key = self.tree.selection()[0]
+            if self.scope.get() == 'Law effects':
+                del self.modifiers[key]
+            elif key in self.institution_base:
+                self.institution_modifiers[key] = format(-Decimal(self.institution_base[key]), 'f')
+            else:
+                del self.institution_modifiers[key]
+            self.refresh()
 
     def save(self):
         if self.loaded is None: return

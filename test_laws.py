@@ -1,4 +1,5 @@
 from pathlib import Path
+from decimal import Decimal
 import tempfile
 import tkinter as tk
 from tkinter import ttk
@@ -55,8 +56,13 @@ class LawTests(unittest.TestCase):
                     tab = LawTab(ttk.Notebook(root))
                 tab.query.set('law_welfare'); tab.select_law()
                 self.assertEqual(tab.scope.get(), 'Institution effects per level')
+                self.assertIn('state_welfare_payments_add', tab.tree.get_children())
+                self.assertEqual(tab.active_modifiers()['state_welfare_payments_add'], '0.2')
                 tab.effect.set('state_welfare_payments_add'); tab.value.set('0.1'); tab.add(); tab.save()
-                self.assertEqual(law_values((common / 'laws' / 'test.txt').read_text(), 'law_welfare')['institution_modifier']['state_welfare_payments_add'], '0.1')
+                self.assertEqual(law_values((common / 'laws' / 'test.txt').read_text(), 'law_welfare')['institution_modifier']['state_welfare_payments_add'], '-0.1')
+                self.assertEqual(tab.active_modifiers()['state_welfare_payments_add'], '0.1')
+                tab.tree.selection_set('state_welfare_payments_add'); tab.remove(); tab.save()
+                self.assertEqual(Decimal(tab.active_modifiers()['state_welfare_payments_add']), 0)
                 self.assertIn('0.2', base.read_text())
             finally:
                 root.destroy()

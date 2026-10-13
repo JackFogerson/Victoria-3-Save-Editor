@@ -64,7 +64,7 @@ Advanced On Enactment and On Removal tabs edit effect scripts. Script structure 
 
 ## Institution law effects
 
-The Laws tab now separates **Law effects** from **Institution effects per level**. Welfare and other institution laws open on their institution effects. The institution's base modifiers are displayed above the editable law-specific additions: for example, Social Security's base welfare payment of 0.2 plus a law addition of 0.1 gives 0.3 per institution level. This edits the chosen law, not the shared institution definition. Suggestions also include installed modifier type definitions.
+The Laws tab separates **Law effects** from **Institution effects per level**. Welfare and other institution laws open on their institution effects. The table includes inherited institution effects and shows editable totals per level. Entering 0.3 for welfare payments means 30% per level; the editor calculates the law-specific adjustment automatically. Removing an inherited effect sets its total to zero for that law. This edits the chosen law, not the shared institution definition. Suggestions also include installed modifier type definitions.
 
 After saving law definitions, fully exit and restart Victoria 3 before loading the save. Reloading a save alone should not be relied on to reload game definitions. `state_pop_qualifications_mult = 0.25` is a +25% qualification-gain modifier, not an instant grant of qualified workers.
 
