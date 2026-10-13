@@ -8,6 +8,18 @@ import tkinter as tk
 
 
 class CulturePercentageTests(unittest.TestCase):
+    def test_each_matching_pop_scales_across_jobs_and_religions(self):
+        editor = runpy.run_path('v3_editor')['Victoria3SaveEditor']
+        stats = {'groups': 0, 'before': 0, 'after': 0}
+        for job, religion in [('laborers', 'catholic'), ('clergymen', 'sunni'), ('farmers', 'orthodox')]:
+            lines = f'1={{\nlocation=42\ntype={job}\nreligion={religion}\nculture=25\nworkforce=100\ndependents=200\n}}\n'.splitlines(True)
+            changed = ''.join(editor.scale_pop_block(lines, '42', '25', Decimal('1.1'), stats))
+            self.assertIn('workforce=110\n', changed)
+            self.assertIn('dependents=220\n', changed)
+            self.assertIn(f'type={job}\n', changed)
+            self.assertIn(f'religion={religion}\n', changed)
+        self.assertEqual(stats, {'groups': 3, 'before': 900, 'after': 990})
+
     def test_scaling_workers_dependents_and_filters(self):
         editor = runpy.run_path('v3_editor')['Victoria3SaveEditor']
         lines = '1={\nlocation=42\ntype=laborers\nculture=25\nworkforce=100\ndependents=200\n}\n'.splitlines(True)

@@ -99,4 +99,5 @@ class MigrationTab(ttk.Frame):
         self.button.configure(state='disabled')
         self.editor.shortage_autofill.cache = None
         self.editor.state_culture_index.changed()
+        self.editor.select_latest_save()
         self.status.set(f'Created migration to State {destination}, expiring {expiry}. Backup: {backup.name}. Reload the save in-game to verify; reload choices before creating another event.')

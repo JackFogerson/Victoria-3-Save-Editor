@@ -158,3 +158,4 @@ class StateResourceTab(ttk.Frame):
         self.land.set(values['arable_land'])
         self.initial = self.values()
         self.status.set(f'Saved {self.region}. Backup: {backup.name}')
+        self.editor.select_latest_save()

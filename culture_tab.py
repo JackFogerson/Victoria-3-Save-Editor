@@ -10,10 +10,11 @@ from culture_definitions import (DEFAULT_CULTURE_FILE, attributes, catalog,
 
 
 class CultureDefinitionTab(ttk.Frame):
-    def __init__(self, notebook, names):
+    def __init__(self, notebook, names, on_saved=None):
         super().__init__(notebook, padding=10)
         notebook.add(self, text='Culture Definitions')
         self.names = names
+        self.on_saved = on_saved
         self.original = None
         self.loaded_culture = None
         self.loaded_path = None
@@ -182,4 +183,5 @@ class CultureDefinitionTab(ttk.Frame):
         self.options = catalog(updated)
         self.loaded_values = values
         self.status.set(f'Saved {self.loaded_culture}. Backup: {backup.name}')
+        if self.on_saved: self.on_saved()
 

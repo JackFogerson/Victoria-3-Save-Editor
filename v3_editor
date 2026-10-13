@@ -14,6 +14,7 @@ from autocomplete import LiveSuggestions
 from state_culture_index import StateCultureIndex
 from law_tab import LawTab
 from migration_tab import MigrationTab
+from state_selector import StateSelector, newest_save
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
@@ -133,6 +134,16 @@ class Victoria3SaveEditor:
 
         self.create_widgets()
         self.state_culture_index = StateCultureIndex(self)
+        self.select_latest_save()
+
+    def select_latest_save(self):
+        folder = os.path.join(os.path.expanduser('~'), 'Documents', 'Paradox Interactive', 'Victoria 3', 'save games')
+        try:
+            path = newest_save(folder)
+        except OSError:
+            return
+        if path is not None:
+            self.file_path.set(str(path))
 
     def set_state_cultures(self, ids):
         self.available_state_cultures = set(ids)
@@ -165,7 +176,8 @@ class Victoria3SaveEditor:
         filter_frame.pack(fill="x", padx=15, pady=5)
 
         ttk.Label(filter_frame, text="State ID:").pack(side="left", padx=5)
-        ttk.Entry(filter_frame, textvariable=self.state_id, width=10).pack(
+        self.state_selector = StateSelector(filter_frame, self)
+        self.state_selector.pack(
             side="left", padx=5
         )
 
@@ -236,7 +248,7 @@ class Victoria3SaveEditor:
         ttk.Label(scale_row, text="Change %:").pack(side="left")
         ttk.Entry(scale_row, textvariable=self.scale_percent, width=9).pack(side="left", padx=5)
         ttk.Button(scale_row, text="Apply Percentage", command=self.apply_culture_percentage).pack(side="left")
-        ttk.Label(scale_frame, text="-90 = remove 90%; +10 = add 10%. Only this culture in the selected state.\nRounds each group's workers and dependents to whole people. Creates a backup.").pack(anchor="w", pady=4)
+        ttk.Label(scale_frame, text="-90 removes 90% from EACH matching population; +10 adds 10% to EACH.\nIncludes workers and dependents, across ALL religions and professions in this state.\nRounds each group's counts to whole people. Creates a backup.").pack(anchor="w", pady=4)
         self.scale_status = tk.StringVar(value="Percentage changes apply separately from workforce additions and culture swaps.")
         ttk.Label(scale_frame, textvariable=self.scale_status, wraplength=700).pack(anchor="w")
 
@@ -264,10 +276,10 @@ class Victoria3SaveEditor:
             self.tab_religion, text="Add Another", command=self.add_religion_row
         )
 
-        self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES)
+        self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES, self.select_latest_save)
         self.homeland_tab = HomelandTab(notebook, self, CULTURE_NAMES)
         self.state_resource_tab = StateResourceTab(notebook, self)
-        self.law_tab = LawTab(notebook)
+        self.law_tab = LawTab(notebook, self.select_latest_save)
         self.migration_tab = MigrationTab(notebook, self, CULTURE_NAMES)
 
         # 4. Master Process Button
@@ -532,6 +544,7 @@ class Victoria3SaveEditor:
             self.stream_edit_save(input_path, state_id, job_changes, culture_map, religion_map)
             self.shortage_autofill.cache = None
             self.state_culture_index.changed()
+            self.select_latest_save()
             messagebox.showinfo("Success", "File modified successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
@@ -593,6 +606,7 @@ class Victoria3SaveEditor:
             self.shortage_autofill.cache = None
             self.state_culture_index.changed()
             self.scale_status.set(f"Population changed from {stats['before']:,} to {stats['after']:,} across {stats['groups']} groups. Backup created beside the save.")
+            self.select_latest_save()
         except (ValueError, InvalidOperation, OSError) as exc:
             messagebox.showerror("Cannot Change Population", str(exc))
 

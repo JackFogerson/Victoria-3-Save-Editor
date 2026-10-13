@@ -145,3 +145,4 @@ class HomelandTab(ttk.Frame):
         self.original, self.text = encoded, updated
         self.initial = list(self.current)
         self.status.set(f'Saved {self.region}. Backup: {backup.name}')
+        self.editor.select_latest_save()

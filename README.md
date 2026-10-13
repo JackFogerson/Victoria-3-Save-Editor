@@ -69,3 +69,9 @@ Select a text save, open Mass Migration, and click Load Migration Choices from S
 Create Mass Migration writes the destination state's `mass_migration` record and a linked entry in the culture's `migration` list. Existing culture migrations are preserved. A dated backup is created; other bytes remain unchanged. Occupied destinations, same-country origins, duplicates, and stale save data are rejected. Source country is used because the game effect does not identify one origin state.
 
 Reload the edited save and unpause to test activation. This mirrors a migration observed in a local save, but has not been validated by running a newly inserted event in-game. Eligibility, movement rates, and outcome are controlled by the game; no population is moved instantly. Reload choices before creating another event.
+
+## Latest save and state search
+
+The editor selects the most recently modified `.v3` file in your Victoria 3 save-games folder at startup and checks again after successful Apply/Save actions. Backups and temporary files are excluded. Browse remains available for manual selection. “Most recent” uses filesystem modification time, including edits made by this editor.
+
+The top State ID field suggests `ID (State Name)` while typing an ID or name. Names come from the selected save and load in the background. Selecting a result keeps the numeric ID internally for every tab. Culture percentage changes affect each matching population group individually, across all professions and religions, including both workers and dependents within the selected state.

@@ -7,10 +7,11 @@ from law_editor import DEFAULT_LAWS, scan_laws, law_values, validate_effect, rep
 
 
 class LawTab(ttk.Frame):
-    def __init__(self, notebook):
+    def __init__(self, notebook, on_saved=None):
         super().__init__(notebook, padding=10)
         notebook.add(self, text='Laws')
         self.loaded = None
+        self.on_saved = on_saved
         self.folder = tk.StringVar(value=str(DEFAULT_LAWS))
         self.query = tk.StringVar()
         self.effect = tk.StringVar()
@@ -142,3 +143,4 @@ class LawTab(ttk.Frame):
             messagebox.showerror('Cannot Save Law', str(exc)); return
         self.text, self.original, self.initial = text, data, values
         self.status.set(f'Saved {self.loaded}. Backup: {backup.name}')
+        if self.on_saved: self.on_saved()
