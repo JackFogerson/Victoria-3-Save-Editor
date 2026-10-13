@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 import unittest
 from unittest.mock import patch
-from law_editor import law_values, replace_law, scan_laws, institution_base
+from law_editor import law_values, replace_law, scan_laws, institution_base, validate_effect
 from law_tab import LawTab
 
 SOURCE = '''law_test = {
@@ -21,6 +21,14 @@ law_other = { group = lawgroup_test }
 
 
 class LawTests(unittest.TestCase):
+    def test_numeric_values_use_game_compatible_decimal_notation(self):
+        for value, expected in [('.25', '0.25'), ('-.2', '-0.2'), ('1e-3', '0.001'), ('+2', '2')]:
+            self.assertEqual(validate_effect('state_pop_qualifications_mult', value), expected)
+            values = law_values(SOURCE, 'law_test')
+            values['modifier']['state_pop_qualifications_mult'] = value
+            changed = replace_law(SOURCE, 'law_test', values)
+            self.assertEqual(law_values(changed, 'law_test')['modifier']['state_pop_qualifications_mult'], expected)
+
     def test_institution_effects_are_separate_and_preserve_base(self):
         source = SOURCE + '\nlaw_welfare = { institution = institution_social_security institution_modifier = { building_minimum_wage_mult = 0.1 # keep\n } }\n'
         values = law_values(source, 'law_welfare')

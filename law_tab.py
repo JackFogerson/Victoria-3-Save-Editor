@@ -140,7 +140,7 @@ class LawTab(ttk.Frame):
     def add(self):
         if self.loaded is None: return
         key, value = self.effect.get().strip(), self.value.get().strip()
-        try: validate_effect(key, value)
+        try: value = validate_effect(key, value)
         except ValueError as exc:
             messagebox.showerror('Invalid Effect', str(exc)); return
         if self.scope.get() != 'Law effects' and not institution_base(self.folder.get(), self.text, self.loaded)[0]:
@@ -161,6 +161,11 @@ class LawTab(ttk.Frame):
             backup = save_changes(self.path, self.original, data)
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Save Law', str(exc)); return
-        self.text, self.original, self.initial = text, data, values
+        self.text, self.original = text, data
+        saved = law_values(text, self.loaded)
+        self.modifiers = saved['modifier']
+        self.institution_modifiers = saved['institution_modifier']
+        self.initial = self.values()
+        self.refresh()
         self.status.set(f'Saved {self.loaded}. Restart Victoria 3 and load your save. Backup: {backup.name}')
         if self.on_saved: self.on_saved()

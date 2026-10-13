@@ -45,6 +45,7 @@ def validate_effect(key, value):
         try: number = Decimal(value)
         except InvalidOperation: raise ValueError('Effect values must be a number, yes, or no.')
         if not number.is_finite(): raise ValueError('Effect values must be finite.')
+        return format(number, 'f')
     return value
 
 
@@ -61,7 +62,7 @@ def replace_law(text, name, values):
             existing = {f.key: f for f in fields[key].children} if key in fields else {}
             added = []
             for effect, value in values[key].items():
-                validate_effect(effect, value)
+                value = validate_effect(effect, value)
                 if effect in existing:
                     field = existing[effect]
                     if field.value != value: edits.append((field.value_start, field.end, value))
