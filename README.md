@@ -62,6 +62,10 @@ The Laws tab scans the installed `common/laws` folder (Browse Folder supports ot
 
 Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, creates a dated backup, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.
 
+## Primary cultures
+
+The Primary Cultures tab edits a nation's primary cultures in the selected text save. Choices load automatically. Search the nation by save ID or country tag, then search cultures by ID or name. Add Culture and Remove Selected stage changes; Save Primary Cultures writes that nation's list. At least one primary culture is required. A dated `.bak` backup is created and excluded from newest-save selection. Reload the edited save in-game. This changes national primary-culture status, not population culture identities.
+
 ## Mass migration events (experimental)
 
 Select a text save and open Mass Migration. Choices load automatically when the selected save changes, including after applying an edit. All three fields suggest matches as you type: culture ID/name, source country ID/tag, and destination state ID/name. Click a suggestion or use the arrow keys and Enter; numeric IDs can also be entered directly. Load Migration Choices from Save remains available for a manual refresh. Choices use IDs from that save, including modded culture keys. The top State ID is used as the initial destination when available. The start date comes from the save; 1461 days defaults to roughly four years.

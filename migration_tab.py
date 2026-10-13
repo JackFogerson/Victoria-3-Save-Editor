@@ -113,6 +113,7 @@ class MigrationTab(ttk.Frame):
         for suggestion in self.suggestions:
             suggestion.show()
         self.button.configure(state='normal')
+        self.event_generate('<<MigrationChoicesLoaded>>')
         self.status.set(f'Loaded {Path(index["path"]).name}, dated {index["date"]}. Choose a culture, origin country, and destination.')
 
     def resolve(self, key):

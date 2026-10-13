@@ -14,6 +14,7 @@ from autocomplete import LiveSuggestions
 from state_culture_index import StateCultureIndex
 from law_tab import LawTab
 from migration_tab import MigrationTab
+from primary_culture_tab import PrimaryCultureTab
 from state_selector import StateSelector, newest_save
 
 
@@ -281,6 +282,7 @@ class Victoria3SaveEditor:
         self.state_resource_tab = StateResourceTab(notebook, self)
         self.law_tab = LawTab(notebook, self.select_latest_save)
         self.migration_tab = MigrationTab(notebook, self, CULTURE_NAMES)
+        self.primary_culture_tab = PrimaryCultureTab(notebook, self)
 
         # 4. Master Process Button
         btn_process = ttk.Button(
