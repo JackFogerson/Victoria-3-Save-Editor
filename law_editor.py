@@ -2,18 +2,28 @@
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
 import re
+import json
 from culture_definitions import definitions, parse
 
 DEFAULT_LAWS = Path(r'C:\Program Files (x86)\Steam\steamapps\common\Victoria 3\game\common\laws')
 
 
+def law_definitions(text):
+    return {name.removeprefix('REPLACE_OR_CREATE:'): block for name, block in definitions(text).items()}
+
+
 def scan_laws(folder):
     laws, effects = {}, set()
-    for path in sorted(Path(folder).glob('*.txt')):
+    folders = [Path(folder)]
+    if Path(folder).resolve() == DEFAULT_LAWS.resolve():
+        config = Path.home() / 'Documents/Paradox Interactive/Victoria 3/content_load.json'
+        if config.is_file():
+            folders.extend(Path(mod['path']) / 'common/laws' for mod in json.loads(config.read_text(encoding='utf-8-sig')).get('enabledMods', []))
+    for path in [p for directory in folders for p in sorted(directory.glob('*.txt'))]:
         text = path.read_bytes().decode('utf-8-sig')
-        for name, block in definitions(text).items():
+        for name, block in law_definitions(text).items():
             if not name.startswith('law_'): continue
-            if name in laws: raise ValueError(f'Duplicate law definition: {name}')
+            if name in laws and laws[name].parent == path.parent: raise ValueError(f'Duplicate law definition: {name}')
             laws[name] = path
             for field in block.children:
                 if field.key in ('modifier', 'institution_modifier'): effects.update(f.key for f in field.children or [] if f.key)
@@ -24,7 +34,7 @@ def scan_laws(folder):
 
 
 def law_values(text, name):
-    fields = {f.key: f for f in definitions(text)[name].children}
+    fields = {f.key: f for f in law_definitions(text)[name].children}
     modifiers = fields.get('modifier')
     if modifiers and any(f.children is not None for f in modifiers.children):
         raise ValueError('Nested law modifiers are not supported by this editor.')
@@ -50,7 +60,7 @@ def validate_effect(key, value):
 
 
 def replace_law(text, name, values):
-    block = definitions(text)[name]
+    block = law_definitions(text)[name]
     fields = {f.key: f for f in block.children}
     original = law_values(text, name)
     newline = '\r\n' if '\r\n' in text else '\n'
@@ -88,7 +98,7 @@ def replace_law(text, name, values):
 
 
 def institution_base(folder, text, name):
-    fields = {f.key: f for f in definitions(text)[name].children}
+    fields = {f.key: f for f in law_definitions(text)[name].children}
     institution = fields.get('institution')
     if institution is None:
         return '', {}

@@ -135,7 +135,7 @@ class LawTab(ttk.Frame):
         for key, box in self.scripts.items():
             box.delete('1.0', 'end'); box.insert('1.0', values[key])
         self.initial = self.values(); self.effect.set(''); self.value.set(''); self.refresh()
-        self.save_button.configure(state='normal'); self.status.set(f'Editing {name} — {path.name}')
+        self.save_button.configure(state='normal'); self.status.set(f'Editing {name} — {path}')
 
     def refresh(self):
         self.tree.delete(*self.tree.get_children())

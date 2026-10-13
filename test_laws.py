@@ -22,6 +22,15 @@ law_other = { group = lawgroup_test }
 
 
 class LawTests(unittest.TestCase):
+    def test_mod_replacement_definition_keeps_prefix_and_other_content(self):
+        source = SOURCE.replace('law_test =', 'REPLACE_OR_CREATE:law_test =')
+        values = law_values(source, 'law_test')
+        values['institution_modifier']['state_education_access_wealth_add'] = '0.07'
+        changed = replace_law(source, 'law_test', values)
+        self.assertTrue(changed.startswith('REPLACE_OR_CREATE:law_test ='))
+        self.assertEqual(law_values(changed, 'law_test'), values)
+        self.assertTrue(changed.endswith('law_other = { group = lawgroup_test }\n'))
+
     def test_numeric_values_use_game_compatible_decimal_notation(self):
         for value, expected in [('.25', '0.25'), ('-.2', '-0.2'), ('1e-3', '0.001'), ('+2', '2')]:
             self.assertEqual(validate_effect('state_pop_qualifications_mult', value), expected)
