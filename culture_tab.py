@@ -4,17 +4,19 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from autocomplete import LiveSuggestions
+from culture_save import apply_culture_goods
 
 from culture_definitions import (DEFAULT_CULTURE_FILE, attributes, catalog,
                                  definitions, replace_attributes, save_changes)
 
 
 class CultureDefinitionTab(ttk.Frame):
-    def __init__(self, notebook, names, on_saved=None):
+    def __init__(self, notebook, names, on_saved=None, save_path=None):
         super().__init__(notebook, padding=10)
         notebook.add(self, text='Culture Definitions')
         self.names = names
         self.on_saved = on_saved
+        self.save_path = save_path
         self.original = None
         self.loaded_culture = None
         self.loaded_path = None
@@ -62,11 +64,24 @@ class CultureDefinitionTab(ttk.Frame):
         ttk.Label(self, textvariable=self.status, wraplength=720).pack(anchor='w', pady=5)
         self.save_button = ttk.Button(self, text='Save Culture Definition (creates backup)', command=self.save, state='disabled')
         self.save_button.pack(anchor='w')
+        if save_path is not None:
+            ttk.Button(self, text='Apply Obsessions/Taboos to Selected Save (creates backup)', command=self.apply_to_save).pack(anchor='w')
+        ttk.Label(self, text='Existing campaigns store their own obsessions and taboos. Apply to the save, then reload it in-game.', wraplength=900).pack(anchor='w')
         if DEFAULT_CULTURE_FILE.is_file():
             self.load_file()
 
     def dirty(self):
         return self.loaded_culture is not None and self.current_values() != self.loaded_values
+
+    def apply_to_save(self):
+        if self.loaded_culture is None:
+            return
+        try:
+            backup = apply_culture_goods(self.save_path(), {self.loaded_culture: self.current_values()})
+        except (OSError, ValueError) as exc:
+            messagebox.showerror('Cannot Update Save', str(exc)); return
+        self.status.set(f'Updated {self.loaded_culture} obsessions/taboos in {backup.name.split(".v3")[0]}. Reload the save in-game. Backup created.')
+        if self.on_saved: self.on_saved()
 
     def allow_discard(self):
         return not self.dirty() or messagebox.askyesno('Unsaved Culture Changes', 'Discard the unsaved culture definition changes?')

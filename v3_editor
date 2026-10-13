@@ -277,7 +277,7 @@ class Victoria3SaveEditor:
             self.tab_religion, text="Add Another", command=self.add_religion_row
         )
 
-        self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES, self.select_latest_save)
+        self.culture_definitions_tab = CultureDefinitionTab(notebook, CULTURE_NAMES, self.select_latest_save, self.file_path.get)
         self.homeland_tab = HomelandTab(notebook, self, CULTURE_NAMES)
         self.state_resource_tab = StateResourceTab(notebook, self)
         self.law_tab = LawTab(notebook, self.select_latest_save)

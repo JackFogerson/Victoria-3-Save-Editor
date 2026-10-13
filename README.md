@@ -72,6 +72,8 @@ After saving law definitions, fully exit and restart Victoria 3 before loading t
 
 ## Primary cultures
 
+Existing campaigns store culture obsessions and taboos in the save. In Culture Definitions, load a culture, select its goods, and click **Apply Obsessions/Taboos to Selected Save** to update those lists in the campaign. It creates a backup and preserves other culture data; reload the edited save in-game. The separate Save Culture Definition button continues to edit game definitions.
+
 The Primary Cultures tab edits a nation's primary cultures in the selected text save. Choices load automatically. Search the nation by save ID or country tag, then search cultures by ID or name. Add Culture and Remove Selected stage changes; Save Primary Cultures writes that nation's list. At least one primary culture is required. A dated `.bak` backup is created and excluded from newest-save selection. Reload the edited save in-game. This changes national primary-culture status, not population culture identities.
 
 ## Mass migration events (experimental)
