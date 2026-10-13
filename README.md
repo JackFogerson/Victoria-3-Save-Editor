@@ -61,3 +61,11 @@ Culture source selectors (swap Target ID and percentage Culture) suggest only cu
 The Laws tab scans the installed `common/laws` folder (Browse Folder supports other installations). Search the dropdown and select a law to load it automatically. Under Ongoing Effects, select a consequence, edit its value and click Add / Update; use the searchable effect list to add a consequence, or Remove Selected to delete one. Suggestions include effects found across the loaded laws; custom modifier keys are allowed. Values are numbers or yes/no. Percentage modifiers use fractional values, such as 0.1 for 10%.
 
 Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, creates a dated backup, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.
+
+## Mass migration events (experimental)
+
+Select a text save, open Mass Migration, and click Load Migration Choices from Save. Choose the migrating culture, source country, destination state, and duration in days. Choices use IDs from that save, including modded culture keys. The top State ID is used as the initial destination when available. The start date comes from the save; 1461 days defaults to roughly four years.
+
+Create Mass Migration writes the destination state's `mass_migration` record and a linked entry in the culture's `migration` list. Existing culture migrations are preserved. A dated backup is created; other bytes remain unchanged. Occupied destinations, same-country origins, duplicates, and stale save data are rejected. Source country is used because the game effect does not identify one origin state.
+
+Reload the edited save and unpause to test activation. This mirrors a migration observed in a local save, but has not been validated by running a newly inserted event in-game. Eligibility, movement rates, and outcome are controlled by the game; no population is moved instantly. Reload choices before creating another event.

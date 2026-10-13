@@ -13,6 +13,7 @@ from shortage_autofill import ShortageAutofill
 from autocomplete import LiveSuggestions
 from state_culture_index import StateCultureIndex
 from law_tab import LawTab
+from migration_tab import MigrationTab
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cultures.json"), encoding="utf-8") as culture_file:
@@ -267,6 +268,7 @@ class Victoria3SaveEditor:
         self.homeland_tab = HomelandTab(notebook, self, CULTURE_NAMES)
         self.state_resource_tab = StateResourceTab(notebook, self)
         self.law_tab = LawTab(notebook)
+        self.migration_tab = MigrationTab(notebook, self, CULTURE_NAMES)
 
         # 4. Master Process Button
         btn_process = ttk.Button(
