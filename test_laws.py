@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 import unittest
 from unittest.mock import patch
-from law_editor import law_values, replace_law, scan_laws
+from law_editor import law_values, replace_law, scan_laws, institution_base
 from law_tab import LawTab
 
 SOURCE = '''law_test = {
@@ -21,6 +21,38 @@ law_other = { group = lawgroup_test }
 
 
 class LawTests(unittest.TestCase):
+    def test_institution_effects_are_separate_and_preserve_base(self):
+        source = SOURCE + '\nlaw_welfare = { institution = institution_social_security institution_modifier = { building_minimum_wage_mult = 0.1 # keep\n } }\n'
+        values = law_values(source, 'law_welfare')
+        self.assertEqual(values['modifier'], {})
+        values['institution_modifier']['state_welfare_payments_add'] = '0.1'
+        values['institution_modifier']['building_minimum_wage_mult'] = '0.2'
+        changed = replace_law(source, 'law_welfare', values)
+        self.assertEqual(law_values(changed, 'law_welfare'), values)
+        self.assertTrue(changed.startswith(SOURCE))
+        self.assertIn('# keep', changed)
+        values['institution_modifier'].pop('building_minimum_wage_mult')
+        self.assertEqual(law_values(replace_law(changed, 'law_welfare', values), 'law_welfare'), values)
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            common = Path(folder)
+            (common / 'laws').mkdir(); (common / 'institutions').mkdir()
+            (common / 'laws' / 'test.txt').write_text(source)
+            base = common / 'institutions' / 'test.txt'
+            base.write_text('institution_social_security = { modifier = { state_welfare_payments_add = 0.2 } }')
+            self.assertEqual(institution_base(common / 'laws', source, 'law_welfare'), ('institution_social_security', {'state_welfare_payments_add': '0.2'}))
+            self.assertIn('building_minimum_wage_mult', scan_laws(common / 'laws')[1])
+            root = tk.Tk(); root.withdraw()
+            try:
+                with patch('law_tab.DEFAULT_LAWS', common / 'laws'):
+                    tab = LawTab(ttk.Notebook(root))
+                tab.query.set('law_welfare'); tab.select_law()
+                self.assertEqual(tab.scope.get(), 'Institution effects per level')
+                tab.effect.set('state_welfare_payments_add'); tab.value.set('0.1'); tab.add(); tab.save()
+                self.assertEqual(law_values((common / 'laws' / 'test.txt').read_text(), 'law_welfare')['institution_modifier']['state_welfare_payments_add'], '0.1')
+                self.assertIn('0.2', base.read_text())
+            finally:
+                root.destroy()
+
     def test_edit_add_remove_and_preserve_scripts_and_other_laws(self):
         original = SOURCE.replace('\n', '\r\n')
         values = law_values(original, 'law_test')

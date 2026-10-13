@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from autocomplete import LiveSuggestions
 from culture_definitions import save_changes
-from law_editor import DEFAULT_LAWS, scan_laws, law_values, validate_effect, replace_law
+from law_editor import DEFAULT_LAWS, scan_laws, law_values, validate_effect, replace_law, institution_base
 
 
 class LawTab(ttk.Frame):
@@ -32,6 +32,12 @@ class LawTab(ttk.Frame):
         self.law_suggestions = LiveSuggestions(self.picker, self.query, self.search_laws)
         inner = ttk.Notebook(self); inner.pack(fill='both', expand=True)
         regular = ttk.Frame(inner, padding=5); inner.add(regular, text='Ongoing Effects')
+        self.scope = tk.StringVar(value='Law effects')
+        scope_picker = ttk.Combobox(regular, textvariable=self.scope, state='readonly', values=('Law effects', 'Institution effects per level'))
+        scope_picker.pack(anchor='w', fill='x')
+        scope_picker.bind('<<ComboboxSelected>>', self.change_scope)
+        self.institution_info = tk.StringVar()
+        ttk.Label(regular, textvariable=self.institution_info, wraplength=880).pack(anchor='w')
         frame = ttk.Frame(regular); frame.pack(fill='both', expand=True)
         self.tree = ttk.Treeview(frame, columns=('value',), height=7, selectmode='browse')
         self.tree.heading('#0', text='Consequence / modifier'); self.tree.heading('value', text='Value')
@@ -56,12 +62,19 @@ class LawTab(ttk.Frame):
             text.configure(yscrollcommand=scroll.set); text.pack(fill='both', expand=True)
             self.scripts[key] = text
         ttk.Label(self, textvariable=self.status, wraplength=900).pack(anchor='w', pady=4)
+        ttk.Label(self, text='After saving game definitions, fully exit and restart Victoria 3, then load your save.\nQualifications modifiers change qualification gain; they do not instantly create qualified workers.', wraplength=900).pack(anchor='w')
         self.save_button = ttk.Button(self, text='Save Law Effects (creates backup)', command=self.save, state='disabled')
         self.save_button.pack(anchor='w')
         if DEFAULT_LAWS.is_dir(): self.load_folder()
 
     def values(self):
-        return {'modifier': dict(self.modifiers), **{key: box.get('1.0', 'end-1c') for key, box in self.scripts.items()}}
+        return {'modifier': dict(self.modifiers), 'institution_modifier': dict(self.institution_modifiers), **{key: box.get('1.0', 'end-1c') for key, box in self.scripts.items()}}
+
+    def active_modifiers(self):
+        return self.modifiers if self.scope.get() == 'Law effects' else self.institution_modifiers
+
+    def change_scope(self, event=None):
+        self.effect.set(''); self.value.set(''); self.refresh()
 
     def discard(self):
         return self.loaded is None or self.values() == self.initial or messagebox.askyesno('Unsaved Law Changes', 'Discard unsaved changes to this law?')
@@ -80,7 +93,8 @@ class LawTab(ttk.Frame):
         self.laws, self.options = laws, options
         self.labels = {name.removeprefix('law_').replace('_', ' ').title() + ' (' + name + ')': name for name in sorted(laws)}
         self.loaded = None; self.query.set(''); self.search_laws()
-        self.modifiers = {}; self.refresh()
+        self.modifiers = {}; self.institution_modifiers = {}; self.refresh()
+        self.institution_info.set('')
         for box in self.scripts.values(): box.delete('1.0', 'end')
         self.save_button.configure(state='disabled')
         self.status.set(f'{len(laws)} laws loaded. Select one to view its consequences.')
@@ -102,10 +116,14 @@ class LawTab(ttk.Frame):
         try:
             path = self.laws[name]; original = path.read_bytes(); text = original.decode('utf-8-sig')
             values = law_values(text, name)
+            institution, base = institution_base(self.folder.get(), text, name)
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Load Law', str(exc)); return
         self.loaded, self.path, self.original, self.text = name, path, original, text
         self.modifiers = values['modifier']
+        self.institution_modifiers = values['institution_modifier']
+        self.scope.set('Institution effects per level' if institution else 'Law effects')
+        self.institution_info.set((institution + ': base per level: ' + (', '.join(f'{k} = {v}' for k, v in base.items()) or 'none') + '\nEntries below add to the base for this law only (e.g. base 0.2 plus 0.1 = 0.3 per level).') if institution else 'This law does not enable an institution. Use Law effects for ongoing modifiers.')
         for key, box in self.scripts.items():
             box.delete('1.0', 'end'); box.insert('1.0', values[key])
         self.initial = self.values(); self.effect.set(''); self.value.set(''); self.refresh()
@@ -113,11 +131,11 @@ class LawTab(ttk.Frame):
 
     def refresh(self):
         self.tree.delete(*self.tree.get_children())
-        for key, value in self.modifiers.items(): self.tree.insert('', 'end', iid=key, text=key, values=(value,))
+        for key, value in self.active_modifiers().items(): self.tree.insert('', 'end', iid=key, text=key, values=(value,))
 
     def select_effect(self, event=None):
         if self.tree.selection():
-            key = self.tree.selection()[0]; self.effect.set(key); self.value.set(self.modifiers[key])
+            key = self.tree.selection()[0]; self.effect.set(key); self.value.set(self.active_modifiers()[key])
 
     def add(self):
         if self.loaded is None: return
@@ -125,11 +143,13 @@ class LawTab(ttk.Frame):
         try: validate_effect(key, value)
         except ValueError as exc:
             messagebox.showerror('Invalid Effect', str(exc)); return
-        self.modifiers[key] = value; self.refresh()
+        if self.scope.get() != 'Law effects' and not institution_base(self.folder.get(), self.text, self.loaded)[0]:
+            messagebox.showerror('No Institution', 'This law does not enable an institution. Choose Law effects.'); return
+        self.active_modifiers()[key] = value; self.refresh()
 
     def remove(self):
         if self.loaded and self.tree.selection():
-            del self.modifiers[self.tree.selection()[0]]; self.refresh()
+            del self.active_modifiers()[self.tree.selection()[0]]; self.refresh()
 
     def save(self):
         if self.loaded is None: return
@@ -142,5 +162,5 @@ class LawTab(ttk.Frame):
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Save Law', str(exc)); return
         self.text, self.original, self.initial = text, data, values
-        self.status.set(f'Saved {self.loaded}. Backup: {backup.name}')
+        self.status.set(f'Saved {self.loaded}. Restart Victoria 3 and load your save. Backup: {backup.name}')
         if self.on_saved: self.on_saved()

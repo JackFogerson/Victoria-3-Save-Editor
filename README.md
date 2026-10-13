@@ -62,6 +62,12 @@ The Laws tab scans the installed `common/laws` folder (Browse Folder supports ot
 
 Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, creates a dated backup, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.
 
+## Institution law effects
+
+The Laws tab now separates **Law effects** from **Institution effects per level**. Welfare and other institution laws open on their institution effects. The institution's base modifiers are displayed above the editable law-specific additions: for example, Social Security's base welfare payment of 0.2 plus a law addition of 0.1 gives 0.3 per institution level. This edits the chosen law, not the shared institution definition. Suggestions also include installed modifier type definitions.
+
+After saving law definitions, fully exit and restart Victoria 3 before loading the save. Reloading a save alone should not be relied on to reload game definitions. `state_pop_qualifications_mult = 0.25` is a +25% qualification-gain modifier, not an instant grant of qualified workers.
+
 ## Primary cultures
 
 The Primary Cultures tab edits a nation's primary cultures in the selected text save. Choices load automatically. Search the nation by save ID or country tag, then search cultures by ID or name. Add Culture and Remove Selected stage changes; Save Primary Cultures writes that nation's list. At least one primary culture is required. A dated `.bak` backup is created and excluded from newest-save selection. Reload the edited save in-game. This changes national primary-culture status, not population culture identities.
