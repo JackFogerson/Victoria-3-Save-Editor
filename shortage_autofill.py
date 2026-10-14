@@ -112,8 +112,15 @@ class ShortageAutofill:
         if reasons:
             self.status.set('Automatic fill skipped: ' + ' '.join(reasons)); return
         amounts = {row['profession']: row['estimated_shortage'] for row in result['rows'] if row['state_id'] == sid}
+        skipped = {}
+        if 'workforce_pop_jobs' in result:
+            existing = set(result['workforce_pop_jobs'].get(sid, []))
+            skipped = {job: amount for job, amount in amounts.items() if job not in existing}
+            amounts = {job: amount for job, amount in amounts.items() if job in existing}
         for job, variable in self.editor.job_inputs.items():
             variable.set(str(amounts.get('soldiers' if job == 'servicemen' else job, 0)))
         region = result['state_names'][sid].removeprefix('STATE_').replace('_', ' ').title()
         total = sum(amounts.values())
         self.status.set(f'{region}: filled {total:,} estimated workers to add (vacancies minus available qualifications). Review before Apply.' if total else f'{region}: no estimated qualification shortfall. Workforce additions set to 0.')
+        if skipped:
+            self.status.set(f'{region}: filled {total:,} estimated workers. Skipped professions with no existing workforce populations: ' + ', '.join(f'{job} ({amount:,})' for job, amount in skipped.items()) + '.')

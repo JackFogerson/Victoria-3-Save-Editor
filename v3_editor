@@ -535,19 +535,25 @@ class Victoria3SaveEditor:
             pop_counts = self.count_matching_pops(input_path, state_id, list(requested_totals.keys()))
 
             job_changes = {}
+            skipped = {}
             for job, total_pool in requested_totals.items():
                 count = pop_counts.get(job, 0)
                 if count > 0:
                     base, remainder = divmod(total_pool, count)
                     job_changes[job] = iter([base + 1] * remainder + [base] * (count - remainder))
                 else:
-                    raise ValueError(f"No existing workforce pops for {job} in this state. Cannot add {total_pool} workers to that profession.")
+                    skipped[job] = total_pool
+
+            skipped_text = ("\n\nSkipped (no existing workforce populations): " + ", ".join(f"{job}: {amount:+,}" for job, amount in skipped.items())) if skipped else ""
+            if not job_changes and not culture_map and not religion_map:
+                messagebox.showinfo("No Changes Applied", "No applicable population changes." + skipped_text)
+                return
 
             self.stream_edit_save(input_path, state_id, job_changes, culture_map, religion_map)
             self.shortage_autofill.cache = None
             self.state_culture_index.changed()
             self.select_latest_save()
-            messagebox.showinfo("Success", "File modified successfully!")
+            messagebox.showinfo("Success", "File modified successfully!" + skipped_text)
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
 

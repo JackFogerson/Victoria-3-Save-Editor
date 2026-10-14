@@ -7,6 +7,29 @@ from unittest.mock import patch
 
 
 class AutofillTests(unittest.TestCase):
+    def test_missing_profession_skipped_while_other_changes_apply(self):
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path = Path(folder) / 'save.txt'
+            path.write_text('1={\nlocation=253\ntype=clerks\nworkforce=10\n}\n')
+            self.editor.file_path.set(str(path)); self.editor.state_id.set('253')
+            self.editor.job_inputs['clerks'].set('5')
+            self.editor.job_inputs['officers'].set('146')
+            with patch.object(self.ns['messagebox'], 'showinfo') as info, patch.object(self.ns['messagebox'], 'showerror') as error:
+                self.editor.process_file()
+                error.assert_not_called()
+                self.assertIn('officers', info.call_args.args[1])
+            self.assertIn('workforce=15', path.read_text())
+
+    def test_autofill_leaves_absent_professions_zero(self):
+        result = {'state_names': {'253': 'STATE_LIBERIA'}, 'warnings': {}, 'unmapped_professions': [],
+                  'states_without_qualification_cache': [], 'workforce_pop_jobs': {'253': ['clerks']},
+                  'rows': [{'state_id': '253', 'profession': 'officers', 'estimated_shortage': 146},
+                           {'state_id': '253', 'profession': 'clerks', 'estimated_shortage': 5}]}
+        self.editor.shortage_autofill.fill(result, '253')
+        self.assertEqual(self.editor.job_inputs['officers'].get(), '0')
+        self.assertEqual(self.editor.job_inputs['clerks'].get(), '5')
+        self.assertIn('officers (146)', self.editor.shortage_autofill.status.get())
+
     def test_incomplete_estimate_explains_reason_and_does_not_fill(self):
         controller = self.editor.shortage_autofill
         result = {'state_names': {'253': 'STATE_LIBERIA'}, 'warnings': {},

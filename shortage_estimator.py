@@ -95,9 +95,12 @@ def estimate(save, game=DEFAULT_GAME):
     # Infer profession indices by comparing aggregate workforce with pop totals.
     population = defaultdict(lambda: defaultdict(int))
     employed = defaultdict(lambda: defaultdict(int))
+    workforce_pop_jobs = defaultdict(set)
     for text in database_blocks(save, 'pops'):
         job, workforce = value(text, 'type'), int(value(text, 'workforce'))
         population[value(text, 'location')][job] += workforce
+        if re.search(r'^\s*workforce=', text, re.M):
+            workforce_pop_jobs[value(text, 'location')].add(job)
         workplace = value(text, 'workplace', '')
         if workplace: employed[workplace][job] += workforce
     professions = sorted({job for counts in population.values() for job in counts})
@@ -164,6 +167,7 @@ def estimate(save, game=DEFAULT_GAME):
             'profession_index_validation': enum_validation,
             'comparison_states': {sid: {'region': st['region'], 'country': st['country'], 'qualifications': {job: float(st['qualifications'].get(index, 0)) for job, index in enum.items()}, 'vacancies': {job: float(n) for job, n in vacancies[sid].items()}} for sid, st in states.items() if 'SUMATRA' in st['region'] or 'HUDAV' in st['region']},
             'unmapped_professions': sorted(set(professions) - set(enum)),
+            'workforce_pop_jobs': {sid: sorted(jobs) for sid, jobs in workforce_pop_jobs.items()},
             'state_unmapped_professions': {sid: sorted(job for job, amount in totals.items() if amount > 0 and job not in enum and job not in ('peasants', 'laborers', 'slaves', 'soldiers')) for sid, totals in vacancies.items()},
             'states_scanned': len(states), 'states_without_qualification_cache': [sid for sid, s in states.items() if not s['has_qualifications']],
             'warnings': {sid: sorted(items) for sid, items in warnings.items() if items}, 'rows': rows}
