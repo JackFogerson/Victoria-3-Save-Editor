@@ -102,8 +102,14 @@ class ShortageAutofill:
     def fill(self, result, sid):
         if sid not in result['state_names']:
             self.status.set(f'State ID {sid} is not present in this save.'); return
-        if result['warnings'].get(sid) or sid in result['states_without_qualification_cache'] or result['unmapped_professions']:
-            self.status.set('Incomplete data for this estimate; automatic fill skipped.'); return
+        reasons = list(result['warnings'].get(sid, []))
+        if sid in result['states_without_qualification_cache']:
+            reasons.append('This state has no cached qualification totals.')
+        if result['unmapped_professions']:
+            reasons.append('Could not verify profession IDs against the save’s cached workforce totals: '
+                           + ', '.join(result['unmapped_professions']) + '. Let the game run briefly, make a fresh save, then Recalculate.')
+        if reasons:
+            self.status.set('Automatic fill skipped: ' + ' '.join(reasons)); return
         amounts = {row['profession']: row['estimated_shortage'] for row in result['rows'] if row['state_id'] == sid}
         for job, variable in self.editor.job_inputs.items():
             variable.set(str(amounts.get('soldiers' if job == 'servicemen' else job, 0)))

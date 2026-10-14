@@ -7,6 +7,20 @@ from unittest.mock import patch
 
 
 class AutofillTests(unittest.TestCase):
+    def test_incomplete_estimate_explains_reason_and_does_not_fill(self):
+        controller = self.editor.shortage_autofill
+        result = {'state_names': {'253': 'STATE_LIBERIA'}, 'warnings': {},
+                  'unmapped_professions': ['laborers'], 'states_without_qualification_cache': [], 'rows': []}
+        self.editor.job_inputs['laborers'].set('12')
+        controller.fill(result, '253')
+        self.assertIn('cached workforce totals', controller.status.get())
+        self.assertIn('laborers', controller.status.get())
+        self.assertEqual(self.editor.job_inputs['laborers'].get(), '12')
+        result['unmapped_professions'] = []
+        result['warnings'] = {'253': ['Unknown production method: mod_pm']}
+        controller.fill(result, '253')
+        self.assertIn('mod_pm', controller.status.get())
+
     def setUp(self):
         self.ns = runpy.run_path('v3_editor')
         self.root = tk.Tk(); self.root.withdraw()
