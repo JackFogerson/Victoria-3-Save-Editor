@@ -5,6 +5,7 @@ from autocomplete import LiveSuggestions
 from culture_definitions import definitions, save_changes
 from state_homelands import resolve_state
 from state_resources import DEFAULT_REGION_FOLDER, scan_regions, resource_values, replace_resources, nonnegative, undiscovered_resources
+from save_resources import load_resources as load_save_resources, save_resources as save_campaign_resources
 
 
 class StateResourceTab(ttk.Frame):
@@ -18,7 +19,9 @@ class StateResourceTab(ttk.Frame):
         self.folder = tk.StringVar(value=str(DEFAULT_REGION_FOLDER))
         self.land = tk.StringVar(value='0')
         self.status = tk.StringVar(value='Select a save and enter its State ID above, then load the state.')
-        ttk.Label(self, text='Edits map definitions for new games; creates a backup when saving.').pack(anchor='w')
+        self.mode = tk.StringVar(value='Selected save')
+        ttk.Label(self, text='Edit campaign resources in the selected save, or map definitions for new games. Values are region totals; split states receive a share.').pack(anchor='w')
+        ttk.Combobox(self, textvariable=self.mode, state='readonly', values=('Selected save', 'New-game map')).pack(anchor='w')
         row = ttk.Frame(self); row.pack(fill='x', pady=4)
         ttk.Entry(row, textvariable=self.folder, state='readonly').pack(side='left', fill='x', expand=True)
         ttk.Button(row, text='Browse Folder…', command=self.browse).pack(side='left')
@@ -88,14 +91,14 @@ class StateResourceTab(ttk.Frame):
             self.status.set('Click Load State to read this folder.')
 
     def selection_context(self):
-        return (self.folder.get(), self.editor.state_id.get().strip(), self.editor.file_path.get())
+        return (self.folder.get(), self.editor.state_id.get().strip(), self.editor.file_path.get(), self.mode.get())
 
     def load(self):
         if not self.discard():
             return
         try:
             context = self.selection_context()
-            folder, sid, save = context
+            folder, sid, save, mode = context
             if not sid.isdecimal(): raise ValueError('Enter a numeric State ID above.')
             regions, arable_options, capped_options = scan_regions(folder)
             region = resolve_state(save, sid)
@@ -104,20 +107,23 @@ class StateResourceTab(ttk.Frame):
             original = path.read_bytes()
             text = original.decode('utf-8-sig')
             values = resource_values(definitions(text)[region])
+            if mode == 'Selected save':
+                self.save_data = load_save_resources(save, sid)
+                values = self.save_data['values']
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Load State', str(exc)); return
         self.region, self.context, self.path = region, context, path
         self.original, self.text = original, text
         self.land.set(values['arable_land'])
         self.arable, self.capped = values['arable_resources'], values['capped_resources']
-        self.undiscovered = undiscovered_resources(definitions(text)[region])
+        self.undiscovered = self.save_data['undiscovered'] if mode == 'Selected save' else undiscovered_resources(definitions(text)[region])
         self.converted = set()
         self.initial = self.values()
         self.options = {'arable_resources': arable_options, 'capped_resources': capped_options}
         for key in self.queries:
             self.queries[key].set(''); self.search(key)
         self.refresh()
-        self.status.set(f'State ID {sid} → {region} — {path.name}. Select a capped building to change its level, then click Add / Update.')
+        self.status.set(f'State ID {sid} → {region} — {mode}. Region totals apply across all split-state portions. Select a capped building, set its level, then Add / Update.')
         self.save_button.configure(state='normal')
 
     def refresh(self):
@@ -173,6 +179,13 @@ class StateResourceTab(ttk.Frame):
             changes = {key: value for key, value in values.items() if value != self.initial[key]}
             if self.converted: changes['capped_resources'] = values['capped_resources']
             if not changes: return
+            if self.mode.get() == 'Selected save':
+                backup = save_campaign_resources(self.save_data, values)
+                self.region = None
+                self.save_button.configure(state='disabled')
+                self.status.set(f'Saved campaign resources. Reload the save in-game. Backup: {backup.name}. Load State again before further edits.')
+                self.editor.select_latest_save()
+                return
             updated = replace_resources(self.text, self.region, changes)
             encoded = (b'\xef\xbb\xbf' if self.original.startswith(b'\xef\xbb\xbf') else b'') + updated.encode('utf-8')
             backup = save_changes(self.path, self.original, encoded)

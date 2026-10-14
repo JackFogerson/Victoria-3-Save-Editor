@@ -13,7 +13,7 @@ def signature(path):
     return stat.st_size, stat.st_mtime_ns
 
 
-def entries(path):
+def entries(path, sections=('country_manager', 'states', 'cultures')):
     section = None
     depth = 0
     raw = None
@@ -23,7 +23,7 @@ def entries(path):
             line = handle.readline()
             if not line: break
             if section is None:
-                match = re.match(rb'^(country_manager|states|cultures)=\{', line)
+                match = re.match(rb'^(' + b'|'.join(re.escape(s.encode()) for s in sections) + rb')=\{', line)
                 if match:
                     section = match[1].decode(); depth = 1
                 continue

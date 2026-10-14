@@ -50,6 +50,7 @@ class StateResourceTests(unittest.TestCase):
             save.write_text('states={\n database={\n 42={ region="STATE_NEW_YORK" }\n }\n}\n')
             editor = Mock(state_id=tk.StringVar(value='42'), file_path=tk.StringVar(value=str(save)))
             tab = StateResourceTab(ttk.Notebook(root), editor)
+            tab.mode.set('New-game map')
             tab.folder.set(folder); tab.load()
             self.assertEqual(tab.region, 'STATE_NEW_YORK')
             tab.land.set('250')
