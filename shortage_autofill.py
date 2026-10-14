@@ -105,9 +105,10 @@ class ShortageAutofill:
         reasons = list(result['warnings'].get(sid, []))
         if sid in result['states_without_qualification_cache']:
             reasons.append('This state has no cached qualification totals.')
-        if result['unmapped_professions']:
+        unmapped = result.get('state_unmapped_professions', {}).get(sid, []) if 'state_unmapped_professions' in result else result['unmapped_professions']
+        if unmapped:
             reasons.append('Could not verify profession IDs against the save’s cached workforce totals: '
-                           + ', '.join(result['unmapped_professions']) + '. Let the game run briefly, make a fresh save, then Recalculate.')
+                           + ', '.join(unmapped) + '. The mapping is ambiguous; automatic filling would be unreliable.')
         if reasons:
             self.status.set('Automatic fill skipped: ' + ' '.join(reasons)); return
         amounts = {row['profession']: row['estimated_shortage'] for row in result['rows'] if row['state_id'] == sid}

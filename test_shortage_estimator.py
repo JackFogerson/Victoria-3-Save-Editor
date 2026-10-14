@@ -1,10 +1,17 @@
 from pathlib import Path
 import tempfile
 import unittest
-from shortage_estimator import estimate, write_report
+from shortage_estimator import estimate, write_report, confident_index
 
 
 class ShortageTests(unittest.TestCase):
+    def test_consensus_tolerates_stale_caches_but_rejects_ambiguity(self):
+        self.assertEqual(confident_index([(635, '7'), (11, '4')], 671), '7')
+        self.assertEqual(confident_index([(727, '8'), (1, '4')], 886), '8')
+        self.assertIsNone(confident_index([(80, '7'), (70, '4')], 100))
+        self.assertIsNone(confident_index([(8, '7'), (0, '4')], 10))
+        self.assertIsNone(confident_index([(40, '7'), (0, '4')], 100))
+        self.assertEqual(confident_index([(1, '12'), (0, '4')], 1), '12')
     def test_unemployed_workers_do_not_fill_building_vacancies(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             root = Path(folder)

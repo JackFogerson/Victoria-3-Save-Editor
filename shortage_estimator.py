@@ -46,6 +46,16 @@ def scalar(fields, key, default='0'):
     return fields[key].value.strip('"') if key in fields else default
 
 
+def confident_index(scores, count):
+    """Require strong exact-match consensus, not universal cache freshness."""
+    scores = sorted(scores, reverse=True)
+    best, index = scores[0]
+    runner = scores[1][0]
+    strict = best >= max(1, count * 0.95) and best > runner
+    consensus = best >= max(20, count * 0.75) and best >= 5 * max(1, runner)
+    return index if strict or consensus else None
+
+
 def pm_jobs(game):
     jobs, unsupported = {}, {}
     for path in sorted((Path(game) / 'common/production_methods').glob('*.txt')):
@@ -100,9 +110,14 @@ def estimate(save, game=DEFAULT_GAME):
             matches = sum(Decimal(counts[job]) == states[sid]['workforce'].get(str(index), Decimal(0)) for sid, counts in relevant)
             scores.append((matches, str(index)))
         scores.sort(reverse=True)
-        if scores[0][0] >= max(1, len(relevant) * 0.95) and scores[0][0] > scores[1][0]:
-            enum[job] = scores[0][1]
+        selected = confident_index(scores, len(relevant))
+        if selected is not None:
+            enum[job] = selected
             enum_validation[job] = {'matching_states': scores[0][0], 'states_with_profession': len(relevant)}
+    # Distinct professions must never resolve to the same array slot.
+    duplicates = {index for index in enum.values() if list(enum.values()).count(index) > 1}
+    enum = {job: index for job, index in enum.items() if index not in duplicates}
+    enum_validation = {job: data for job, data in enum_validation.items() if job in enum}
     jobs, unsupported = pm_jobs(game)
     vacancies = defaultdict(lambda: defaultdict(Decimal))
     warnings = defaultdict(set)
@@ -149,6 +164,7 @@ def estimate(save, game=DEFAULT_GAME):
             'profession_index_validation': enum_validation,
             'comparison_states': {sid: {'region': st['region'], 'country': st['country'], 'qualifications': {job: float(st['qualifications'].get(index, 0)) for job, index in enum.items()}, 'vacancies': {job: float(n) for job, n in vacancies[sid].items()}} for sid, st in states.items() if 'SUMATRA' in st['region'] or 'HUDAV' in st['region']},
             'unmapped_professions': sorted(set(professions) - set(enum)),
+            'state_unmapped_professions': {sid: sorted(job for job, amount in totals.items() if amount > 0 and job not in enum and job not in ('peasants', 'laborers', 'slaves', 'soldiers')) for sid, totals in vacancies.items()},
             'states_scanned': len(states), 'states_without_qualification_cache': [sid for sid, s in states.items() if not s['has_qualifications']],
             'warnings': {sid: sorted(items) for sid, items in warnings.items() if items}, 'rows': rows}
 
