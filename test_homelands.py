@@ -61,6 +61,7 @@ class HomelandTests(unittest.TestCase):
             history.write_bytes(original)
             editor = Mock(file_path=tk.StringVar(value=str(save)), state_id=tk.StringVar(value='0'))
             tab = HomelandTab(ttk.Notebook(root), editor, {'0': 'north german'})
+            tab.mode.set('New-game history')
             tab.path.set(str(history)); tab.load()
             self.assertEqual(tab.region, 'STATE_MINSK')
             tab.query.set('0'); tab.add(); tab.add()

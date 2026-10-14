@@ -3,6 +3,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from autocomplete import LiveSuggestions
+from save_homelands import load_homelands, save_homelands
 from culture_definitions import save_changes
 from state_homelands import DEFAULT_STATE_FILE, resolve_state, history_states, homelands, replace_homelands
 
@@ -21,7 +22,10 @@ class HomelandTab(ttk.Frame):
         self.labels = {f'{i} ({names.get(str(i), key.replace("_", " "))}) — {key}': key for i, key in enumerate(keys)}
         self.ids = dict(enumerate(keys))
         self.names = names
-        ttk.Label(self, text='Edit homeland history in 00_states.txt. These changes apply to new games.').pack(anchor='w')
+        self.mode = tk.StringVar(value='Selected save')
+        self.loaded_mode = None
+        ttk.Label(self, text='Edit campaign homelands in the selected save, or starting history for new games.').pack(anchor='w')
+        ttk.Combobox(self, textvariable=self.mode, state='readonly', values=('Selected save', 'New-game history')).pack(anchor='w')
         row = ttk.Frame(self)
         row.pack(fill='x', pady=8)
         ttk.Entry(row, textvariable=self.path, state='readonly').pack(side='left', fill='x', expand=True)
@@ -74,6 +78,18 @@ class HomelandTab(ttk.Frame):
         try:
             save = self.editor.file_path.get()
             state_id = self.editor.state_id.get().strip()
+            if self.mode.get() == 'Selected save':
+                self.save_data = load_homelands(save, state_id)
+                self.region = self.save_data['region']
+                self.context = (save, state_id)
+                self.loaded_mode = self.mode.get()
+                self.current = list(self.save_data['current'])
+                self.initial = list(self.current)
+                self.ids = {int(record[3]): name for name, record in self.save_data['records'].items()}
+                self.labels = {f'{cid} ({name.replace("_", " ")}) — {name}': name for cid, name in self.ids.items()}
+                self.search(); self.refresh()
+                self.save_button.configure(state='normal')
+                return
             region = resolve_state(save, state_id)
             path = Path(self.path.get())
             original = path.read_bytes()
@@ -86,6 +102,7 @@ class HomelandTab(ttk.Frame):
             messagebox.showerror('Cannot Load Homelands', str(exc))
             return
         self.region, self.loaded_path = region, path
+        self.loaded_mode = self.mode.get()
         self.original, self.text = original, text
         self.context = (save, state_id)
         self.current, self.initial = values, list(values)
@@ -97,7 +114,7 @@ class HomelandTab(ttk.Frame):
         reverse = {key: label for label, key in self.labels.items()}
         for name in self.current:
             self.list.insert('end', reverse.get(name, name + ' (pending)'))
-        self.status.set(f'State ID {self.context[1]} → {self.region}: {len(self.current)} homelands. Saving edits this history region, including all split-state portions.')
+        self.status.set(f'State ID {self.context[1]} → {self.region}: {len(self.current)} homelands. Target: {self.loaded_mode}. Applies to all split-state portions of this region.')
 
     def add(self):
         if self.region is None:
@@ -130,10 +147,17 @@ class HomelandTab(ttk.Frame):
     def save(self):
         if self.region is None or not self.dirty():
             return
-        if self.context != (self.editor.file_path.get(), self.editor.state_id.get().strip()):
+        if self.loaded_mode != self.mode.get() or self.context != (self.editor.file_path.get(), self.editor.state_id.get().strip()):
             messagebox.showerror('State Selection Changed', 'Reload homelands for the newly selected save or State ID before saving.')
             return
         try:
+            if self.loaded_mode == 'Selected save':
+                backup = save_homelands(self.save_data, self.current)
+                self.initial = list(self.current)
+                self.status.set(f'Saved campaign homelands for {self.region}. Reload the save in-game. Backup: {backup.name if backup else "no changes"}')
+                self.save_button.configure(state='disabled')
+                self.editor.select_latest_save()
+                return
             updated = replace_homelands(self.text, self.region, self.current)
             encoded = updated.encode('utf-8')
             if self.original.startswith(b'\xef\xbb\xbf'):
