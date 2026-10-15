@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from mass_migration import entries, field, signature
 from state_resources import nonnegative
+from save_io import commit_save
 
 
 def get(text, key, default=None):
@@ -101,7 +102,7 @@ def save_resources(loaded, values):
     edits = [(start, end, changed.encode('utf-8'))]
     if land != loaded['values']['arable_land']:
         for a, b, text in loaded['states'].values():
-            share = Decimal(get(text, 'land', '-1'))
+            share = Decimal(get(text, 'land', '1' if len(loaded['states']) == 1 else '-1'))
             if not 0 <= share <= 1: raise ValueError('State land share is missing or invalid.')
             amount = str((Decimal(land) * share).to_integral_value(rounding=ROUND_HALF_UP))
             edits.append((a, b, put(text, 'arable_land', amount).encode('utf-8')))
@@ -119,8 +120,7 @@ def save_resources(loaded, values):
             shutil.copyfileobj(source, target)
         if signature(path) != loaded['signature']: raise ValueError('Save changed while preparing edit; nothing applied.')
         backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
-        shutil.copy2(path, backup)
-        os.replace(temporary, path)
+        commit_save(temporary, path, loaded['signature'], backup)
         return backup
     finally:
         if temporary and os.path.exists(temporary): os.unlink(temporary)

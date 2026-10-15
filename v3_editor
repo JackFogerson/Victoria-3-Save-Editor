@@ -2,6 +2,9 @@ import json
 import os
 import re
 import shutil
+import tempfile
+from save_io import commit_save
+from mass_migration import signature
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime
 import tkinter as tk
@@ -623,7 +626,9 @@ class Victoria3SaveEditor:
         in_pop_block = False
         bracket_depth = 0
         pop_lines = []
-        temp_file = in_file + ".tmp"
+        expected = signature(in_file)
+        descriptor, temp_file = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(in_file)), suffix='.tmp')
+        os.close(descriptor)
         stats = {"groups": 0, "before": 0, "after": 0}
 
         with open(in_file, "rb") as f_in, open(temp_file, "wb") as f_out:
@@ -660,8 +665,10 @@ class Victoria3SaveEditor:
             os.remove(temp_file)
             raise ValueError("No population groups matched that culture and State ID.")
         backup = in_file + "." + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + ".bak"
-        shutil.copy2(in_file, backup)
-        os.replace(temp_file, in_file)
+        try:
+            commit_save(temp_file, in_file, expected, backup)
+        finally:
+            if os.path.exists(temp_file): os.remove(temp_file)
         return stats
 
     @staticmethod

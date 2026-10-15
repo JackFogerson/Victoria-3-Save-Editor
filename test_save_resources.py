@@ -35,6 +35,15 @@ state_region_manager={
 
 
 class SaveResourceTests(unittest.TestCase):
+    def test_whole_state_omits_land_share(self):
+        source = SOURCE.replace(' land=0.25\n', '').replace('11={\n region="STATE_TEST"\n land=0.75\n arable_land=75\n}\n', '')
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path = Path(folder) / 'test.v3'; path.write_text(source)
+            loaded = load_resources(path, '10')
+            values = dict(loaded['values'], arable_land='200')
+            save_resources(loaded, values)
+            self.assertIn('arable_land=200', load_resources(path, '10')['states']['10'][2])
+
     def test_roundtrip_split_land_conversion_and_stale_guard(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             path = Path(folder) / 'test.v3'; path.write_bytes(SOURCE.encode())
