@@ -95,6 +95,8 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(expiry, '1837.1.1')
             self.assertEqual(list(Path(folder).iterdir()), [path])
             changed = path.read_bytes().decode()
+            self.assertIn('\t\t\tdate=1837.1.1\r\n', changed)
+            self.assertIn('\t\t\texpiry_date=1841.1.1\r\n', changed)
             self.assertIn('\t\tculture=25\r\n\t\tcountry=1', changed)
             self.assertIn('\t\t\tstate=20', changed)
             self.assertIn('state=99 origin=1', changed)

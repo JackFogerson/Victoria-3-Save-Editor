@@ -17,7 +17,7 @@ class MigrationTab(ttk.Frame):
         self.reload_requested = False
         self.results = queue.Queue()
         self.status = tk.StringVar(value='Select a save above. Migration choices load automatically.')
-        self.days = tk.StringVar(value='1461')
+        self.days = tk.StringVar(value='365')
         self.choices, self.variables, self.pickers, self.suggestions = {}, {}, {}, []
         ttk.Label(self, text='Create an active mass-migration event in the selected save. The game controls population movement.').pack(anchor='w', pady=5)
         ttk.Button(self, text='Load Migration Choices from Save', command=self.load).pack(anchor='w', pady=8)
@@ -33,7 +33,7 @@ class MigrationTab(ttk.Frame):
         row = ttk.Frame(self); row.pack(fill='x', pady=8)
         ttk.Label(row, text='Duration in days:', width=22).pack(side='left')
         ttk.Entry(row, textvariable=self.days, width=10).pack(side='left')
-        ttk.Label(row, text='Starts on the save’s current game date. 1461 days is about four years.').pack(side='left', padx=8)
+        ttk.Label(row, text='Active duration from the save date. Default: 365 days; cooldown follows afterward.').pack(side='left', padx=8)
         ttk.Label(self, text='Experimental save event: reload the edited save and unpause to verify activation.\nExisting migrations are preserved; occupied destinations are rejected. No people are transferred instantly.\nUpdates the selected save without creating a backup.', wraplength=900).pack(anchor='w', pady=12)
         self.button = ttk.Button(self, text='Create Mass Migration in Save', command=self.create, state='disabled')
         self.button.pack(anchor='w', pady=8)

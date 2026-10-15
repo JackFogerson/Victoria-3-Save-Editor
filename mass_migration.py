@@ -105,6 +105,12 @@ def updated_records(state_text, culture_text, culture_id, country_id, state_id, 
         raise ValueError('Duration must be 1–36,500 days.')
     start = date.fromisoformat(start_date)
     expiry = start + timedelta(days=days)
+    # Natural save records have a future `date` while active. `expiry_date`
+    # retains the record for the four-year cooldown after migration ends.
+    try:
+        cooldown = expiry.replace(year=expiry.year + 4)
+    except ValueError:
+        cooldown = expiry.replace(year=expiry.year + 4, day=28)
     def game_date(value): return f'{value.year}.{value.month}.{value.day}'
     if field(state_text, 'mass_migration') is not None:
         raise ValueError('Destination already has a mass-migration record. Choose another state.')
@@ -118,7 +124,7 @@ def updated_records(state_text, culture_text, culture_id, country_id, state_id, 
     close = state_text.rfind('}')
     state_text = state_text[:close] + destination + state_text[close:]
     newline = '\r\n' if '\r\n' in culture_text else '\n'
-    record = newline.join(['{', f'\t\t\tstate={state_id}', f'\t\t\torigin={country_id}', f'\t\t\tdate={game_date(start)}', f'\t\t\texpiry_date={game_date(expiry)}', '\t\t\tactive=yes', '\t\t}'])
+    record = newline.join(['{', f'\t\t\tstate={state_id}', f'\t\t\torigin={country_id}', f'\t\t\tdate={game_date(expiry)}', f'\t\t\texpiry_date={game_date(cooldown)}', '\t\t\tactive=yes', '\t\t}'])
     if span:
         insert = span[1] - 1
         culture_text = culture_text[:insert] + ' ' + record + ' ' + culture_text[insert:]
