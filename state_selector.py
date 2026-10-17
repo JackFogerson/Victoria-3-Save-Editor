@@ -68,7 +68,8 @@ class StateSelector(ttk.Combobox):
         self.labels = {}; self.suggestions.hide(); self.refresh()
         self.id_changed()
         if self.timer is not None: self.after_cancel(self.timer)
-        self.timer = self.after(400, self.load)
+        if not hasattr(self.editor, "multi_state"):
+            self.timer = self.after(400, self.load)
 
     def load(self):
         self.timer = None

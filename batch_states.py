@@ -6,10 +6,10 @@ import os
 import re
 import shutil
 import tempfile
-from mass_migration import entries, field, signature
+from mass_migration import entries, field, signature, updated_records
 from save_io import commit_save
 from save_homelands import cores
-from save_resources import put
+from save_resources import put, get, resources_from_records, prepare_resource_edits
 
 
 def scalar(text, key, default=''):
@@ -21,11 +21,17 @@ def load_batch(path):
     path = Path(path).resolve()
     before = signature(path)
     states, cultures, pops = {}, {}, []
-    for section, ident, start, end, raw in entries(path, ('states', 'cultures', 'pops')):
+    state_records, regions, countries = {}, {}, {}
+    for section, ident, start, end, raw in entries(path, ('states', 'cultures', 'pops', 'state_region_manager', 'country_manager')):
         text = raw.decode('utf-8')
-        if section == 'states':
+        if section == 'state_region_manager':
+            regions[get(text, 'template', '').strip(chr(34))] = (start, end, text)
+        elif section == 'country_manager':
+            countries[ident] = scalar(text, 'definition')
+        elif section == 'states':
+            state_records[ident] = (start, end, text)
             region = scalar(text, 'region')
-            if region: states[ident] = {'region': region, 'cultures': Counter(), 'religions': Counter(), 'jobs': Counter(), 'homelands': []}
+            if region: states[ident] = {'region': region, 'cultures': Counter(), 'religions': Counter(), 'jobs': Counter(), 'homelands': [], 'country': scalar(text, 'country')}
         elif section == 'cultures':
             key = scalar(text, 'type')
             if key: cultures[ident] = {'key': key, 'span': (start, end), 'text': text, 'cores': cores(text)}
@@ -46,7 +52,14 @@ def load_batch(path):
         state['homelands'] = [cid for cid, culture in cultures.items() if state['region'] in culture['cores']]
     if signature(path) != before: raise ValueError('Save changed during loading. Reload the batch.')
     if not states or not cultures: raise ValueError('Select a supported text save with states and cultures.')
-    return {'path': str(path), 'signature': before, 'states': states, 'cultures': cultures, 'pops': pops}
+    game_date = None
+    with path.open('rb') as handle:
+        for line in handle:
+            match = re.match(rb'^date=(\d+)\.(\d+)\.(\d+)', line)
+            if match:
+                game_date = '-'.join(x.decode().zfill(2) for x in match.groups()); break
+            if handle.tell() > 1024 * 1024: break
+    return {'date': game_date, 'state_records': state_records, 'regions': regions, 'countries': countries, 'path': str(path), 'signature': before, 'states': states, 'cultures': cultures, 'pops': pops}
 
 
 def apply_batch(snapshot, plans):
@@ -117,6 +130,31 @@ def apply_batch(snapshot, plans):
         if values != culture['cores']:
             text = put(culture['text'], 'core_states', '{ ' + ' '.join(values) + ' }')
             edits.append((*culture['span'], text.encode('utf-8')))
+    # Merge edits to the same culture/state (homelands, resources and migrations).
+    merged = {(a, b): data for a, b, data in edits}
+    resource_regions = {}
+    for sid, plan in plans.items():
+        if 'resources' not in plan: continue
+        region = snapshot['states'][sid]['region']
+        if region in resource_regions:
+            if resource_regions[region] != plan['resources']: raise ValueError('Conflicting resource edits for split states in ' + region)
+            continue
+        resource_regions[region] = plan['resources']
+        loaded = resources_from_records(path, snapshot['signature'], sid, snapshot['state_records'], snapshot['regions'])
+        for a, b, data in prepare_resource_edits(loaded, plan['resources']): merged[a, b] = data
+    for sid, plan in plans.items():
+        if 'migration' not in plan: continue
+        event = plan['migration']; cid, source = event['culture'], event['source']
+        if cid not in valid_cultures or source not in snapshot['countries']: raise ValueError('Choose a valid migration culture and source country.')
+        if source == snapshot['states'][sid]['country']: raise ValueError('Mass migration requires a destination in another country.')
+        if not snapshot['date']: raise ValueError('Save date is missing.')
+        a, b, state_text = snapshot['state_records'][sid]
+        culture = snapshot['cultures'][cid]; c, d = culture['span']
+        state_text = merged.get((a, b), state_text.encode()).decode('utf-8')
+        culture_text = merged.get((c, d), culture['text'].encode()).decode('utf-8')
+        state_text, culture_text, _ = updated_records(state_text, culture_text, cid, source, sid, snapshot['date'], int(event['days']))
+        merged[a, b] = state_text.encode('utf-8'); merged[c, d] = culture_text.encode('utf-8')
+    edits = [(a, b, data) for (a, b), data in merged.items()]
     result = {'populations': touched_pops, 'records': len(edits), 'skipped': skipped}
     if not edits: return result
     temporary = None

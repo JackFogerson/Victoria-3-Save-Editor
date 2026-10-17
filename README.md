@@ -98,10 +98,14 @@ State Editor also scans `resource` blocks with `undiscovered_amount`. The instal
 
 Loading a state displays its undiscovered amounts. Selecting a matching capped-resource key suggests existing capped levels plus all undiscovered levels of that type. Level is the final capped total and remains editable. Add / Update stages conversion; Save State Resources removes matching undiscovered resource blocks and writes the capped value. Other resource types stay unchanged. Removing a staged capped entry cancels its pending conversion. A gold-field conversion uses `building_gold_field`, not `building_gold_mine`; the converted resource block, including any depletion metadata, is removed.
 
-## Batch States
+## Editing multiple states
 
-Open **Batch States**, click **Start Fresh / Load Save**, and add states by ID or name. The save is scanned once. Each state has its own panel for homelands, culture percentages, culture conversions, religion conversions, and workforce additions. Edit several panels and click **Apply All State Changes** to write everything together. Blank conversions and zero adjustments leave populations unchanged.
+Use **Load / Reload All States** above the tabs, then search for each state by name or save ID and click **Add State**. The same selection appears as scrolling, independent panels inside the existing **Modify Workforces**, **Change Culture**, **Change Religion**, **State Homelands**, **State Editor**, and **Mass Migration** tabs. There is no separate batch tab.
 
-Percentages apply to each matching population’s workers and dependents first, followed by workforce additions and then culture/religion conversions. Homelands are shared by split states in the same region; conflicting lists are rejected. If the save changes externally, reload before applying. Resource editing remains in State Editor.
+For example, add Maine, New Hampshire, Vermont, Massachusetts, Rhode Island, and Connecticut. In Mass Migration, scroll through their panels and choose a culture, source country, and duration for each destination; tick each event you want to create. In State Editor, scroll through the same states to edit each one's arable land and resources. Resource and homeland panels edit the selected campaign. Culture Definitions, Laws, and Primary Cultures remain global editors.
 
-All editor save and definition actions now overwrite their target without creating automatic backup files.
+**Apply All State Changes** validates and saves pending edits from all state tabs together in one write, with no automatic backups. State data is indexed once when loading; adding another state uses the cached index. After saving, all selected states reload together. Reloading or removing states discards their pending edits after confirmation.
+
+Percentages apply to each matching population’s workers and dependents first, followed by workforce additions and culture/religion conversions. Split states share regional homelands and resources; conflicting edits are rejected. Existing migrations are preserved, and occupied destinations are rejected. If another process changes the save, reload before applying.
+
+All editor save and definition actions overwrite their target without creating automatic backup files.

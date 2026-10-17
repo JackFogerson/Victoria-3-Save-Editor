@@ -18,7 +18,7 @@ from state_culture_index import StateCultureIndex
 from law_tab import LawTab
 from migration_tab import MigrationTab
 from primary_culture_tab import PrimaryCultureTab
-from batch_tab import BatchTab
+from multi_state_workspace import MultiStateWorkspace
 from state_selector import StateSelector, newest_save
 
 
@@ -287,15 +287,20 @@ class Victoria3SaveEditor:
         self.law_tab = LawTab(notebook, self.select_latest_save)
         self.migration_tab = MigrationTab(notebook, self, CULTURE_NAMES)
         self.primary_culture_tab = PrimaryCultureTab(notebook, self)
-        self.batch_tab = BatchTab(notebook, self)
+        for child in filter_frame.winfo_children(): child.pack_forget()
+        filter_frame.configure(text=" 2. States to Edit ")
+        self.multi_state = MultiStateWorkspace(filter_frame, notebook, self)
+        # The migration controls now live in each state's panel.
+        self.migration_tab.destroy()
 
         # 4. Master Process Button
         btn_process = ttk.Button(
             self.root,
-            text="Apply Population Changes to Selected Save",
-            command=self.process_file,
+            text="Apply All State Changes",
+            command=self.multi_state.apply,
         )
-        btn_process.pack(pady=15)
+        # The shared selector contains the single Apply button.
+        btn_process.destroy()
 
     def browse_file(self):
         save_directory = os.path.join(os.path.expanduser("~"), "Documents", "Paradox Interactive", "Victoria 3", "save games")
