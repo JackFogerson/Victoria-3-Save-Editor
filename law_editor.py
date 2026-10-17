@@ -9,7 +9,7 @@ DEFAULT_LAWS = Path(r'C:\Program Files (x86)\Steam\steamapps\common\Victoria 3\g
 
 
 def law_definitions(text):
-    return {name.removeprefix('REPLACE_OR_CREATE:'): block for name, block in definitions(text).items()}
+    return {name.removeprefix('REPLACE_OR_CREATE:').removeprefix('REPLACE:'): block for name, block in definitions(text).items()}
 
 
 def scan_laws(folder):

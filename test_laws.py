@@ -31,6 +31,18 @@ class LawTests(unittest.TestCase):
         self.assertEqual(law_values(changed, 'law_test'), values)
         self.assertTrue(changed.endswith('law_other = { group = lawgroup_test }\n'))
 
+    def test_replace_directive_is_discovered_and_edited(self):
+        source = SOURCE.replace('law_test =', 'REPLACE:law_test =')
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path = Path(folder) / 'override.txt'; path.write_text(source)
+            self.assertEqual(scan_laws(folder)[0]['law_test'], path)
+            values = law_values(source, 'law_test')
+            values['modifier']['state_pop_qualifications_mult'] = '0.3'
+            changed = replace_law(source, 'law_test', values)
+            self.assertTrue(changed.startswith('REPLACE:law_test ='))
+            self.assertEqual(law_values(changed, 'law_test'), values)
+            self.assertEqual(law_values(changed, 'law_other'), law_values(source, 'law_other'))
+
     def test_numeric_values_use_game_compatible_decimal_notation(self):
         for value, expected in [('.25', '0.25'), ('-.2', '-0.2'), ('1e-3', '0.001'), ('+2', '2')]:
             self.assertEqual(validate_effect('state_pop_qualifications_mult', value), expected)
