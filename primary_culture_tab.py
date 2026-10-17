@@ -36,7 +36,7 @@ class PrimaryCultureTab(ttk.Frame):
         ttk.Button(row, text='Remove Selected', command=self.remove).pack(side='left', padx=8)
         self.save_button = ttk.Button(row, text='Save Primary Cultures', command=self.save, state='disabled')
         self.save_button.pack(side='left')
-        ttk.Label(self, text='Keep at least one primary culture. Saving creates a .bak backup (excluded from newest-save selection).\nReload the edited save in-game to apply the change.', wraplength=900).pack(anchor='w')
+        ttk.Label(self, text='Keep at least one primary culture. Saving does not create a backup.\nReload the edited save in-game to apply the change.', wraplength=900).pack(anchor='w')
         self.status = tk.StringVar(value='Choices load automatically from the selected save.')
         ttk.Label(self, textvariable=self.status, wraplength=900).pack(anchor='w', pady=8)
         self.loader.bind('<<MigrationChoicesLoaded>>', self.loaded, add='+')
@@ -123,4 +123,4 @@ class PrimaryCultureTab(ttk.Frame):
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Save Primary Cultures', str(exc)); return
         self.editor.select_latest_save()
-        messagebox.showinfo('Primary Cultures Saved', f'Reload the save in-game. Backup: {backup.name}')
+        messagebox.showinfo('Primary Cultures Saved', f'Reload the save in-game. No backup created')

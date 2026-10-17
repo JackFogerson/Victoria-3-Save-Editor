@@ -51,7 +51,7 @@ class SaveResourceTests(unittest.TestCase):
             self.assertEqual(loaded['undiscovered'], {'building_oil_rig': 10})
             values = {'arable_land': '200', 'arable_resources': ['building_tea_plantation'], 'capped_resources': {'building_iron_mine': '35', 'building_oil_rig': '10'}, 'discover_resources': ['building_oil_rig']}
             backup = save_resources(loaded, values)
-            self.assertEqual(backup.read_bytes(), SOURCE.encode())
+            self.assertIsNone(backup)
             fresh = load_resources(path, '10')
             self.assertEqual(fresh['values'], {k:v for k,v in values.items() if k != 'discover_resources'})
             self.assertEqual(fresh['undiscovered'], {})

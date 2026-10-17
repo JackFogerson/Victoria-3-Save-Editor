@@ -57,8 +57,7 @@ def save_primary_cultures(index, country_id, ids):
             shutil.copyfileobj(source, target)
         if signature(path) != index['signature']:
             raise ValueError('Save changed while preparing edit; nothing applied.')
-        backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
-        shutil.copy2(path, backup)
+        backup = None
         os.replace(temporary, path)
         return backup
     finally:

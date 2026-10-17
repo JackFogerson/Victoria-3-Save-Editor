@@ -118,8 +118,7 @@ def save_changes(path, original, updated):
     path = Path(path)
     if path.read_bytes() != original:
         raise ValueError('The file changed since loading. Reload it before saving.')
-    backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
-    shutil.copy2(path, backup)
+    backup = None
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + '.', suffix='.tmp', delete=False) as handle:

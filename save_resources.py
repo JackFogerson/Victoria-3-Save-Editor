@@ -119,7 +119,7 @@ def save_resources(loaded, values):
                 source.seek(b); target.write(data)
             shutil.copyfileobj(source, target)
         if signature(path) != loaded['signature']: raise ValueError('Save changed while preparing edit; nothing applied.')
-        backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
+        backup = None
         commit_save(temporary, path, loaded['signature'], backup)
         return backup
     finally:

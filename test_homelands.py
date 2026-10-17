@@ -74,7 +74,7 @@ class HomelandTests(unittest.TestCase):
             editor.state_id.set('0'); tab.save()
             self.assertEqual(homelands(history_states(history.read_text(encoding='utf-8-sig'))['STATE_MINSK']), ['byelorussian', 'north_german'])
             self.assertTrue(history.read_bytes().startswith(b'\xef\xbb\xbf'))
-            self.assertEqual(next(Path(folder).glob('*.bak')).read_bytes(), original)
+            self.assertEqual(list(Path(folder).glob('*.bak')), [])
 
 
 if __name__ == '__main__':

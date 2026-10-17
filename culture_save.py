@@ -53,8 +53,7 @@ def apply_culture_goods(path, changes):
             shutil.copyfileobj(source, target)
         if signature(path) != before:
             raise ValueError('Save changed while preparing edit; nothing applied.')
-        backup = path.with_name(path.name + '.' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.bak')
-        shutil.copy2(path, backup)
+        backup = None
         os.replace(temporary, path)
         return backup
     finally:

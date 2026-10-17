@@ -56,7 +56,7 @@ class DefinitionTests(unittest.TestCase):
             original = b'\xef\xbb\xbf' + SAMPLE.encode()
             path.write_bytes(original)
             backup = save_changes(path, original, b'updated')
-            self.assertEqual(backup.read_bytes(), original)
+            self.assertIsNone(backup)
             self.assertEqual(path.read_bytes(), b'updated')
             with self.assertRaises(ValueError):
                 save_changes(path, original, b'overwrite')
@@ -87,7 +87,7 @@ class DefinitionTests(unittest.TestCase):
             data = attributes(definitions(path.read_text(encoding='utf-8-sig'))['north_german'])
             self.assertEqual(data['religion'], 'catholic')
             self.assertEqual(data['obsessions'], [])
-            self.assertEqual(len(list(Path(folder).glob('*.bak'))), 1)
+            self.assertEqual(len(list(Path(folder).glob('*.bak'))), 0)
             self.assertFalse(tab.dirty())
 
 

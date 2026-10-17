@@ -17,13 +17,14 @@ def entries(path, sections=('country_manager', 'states', 'cultures')):
     section = None
     depth = 0
     raw = None
+    section_pattern = re.compile(rb'^(' + b'|'.join(re.escape(s.encode()) for s in sections) + rb')=\{')
     with Path(path).open('rb') as handle:
         while True:
             offset = handle.tell()
             line = handle.readline()
             if not line: break
             if section is None:
-                match = re.match(rb'^(' + b'|'.join(re.escape(s.encode()) for s in sections) + rb')=\{', line)
+                match = section_pattern.match(line)
                 if match:
                     section = match[1].decode(); depth = 1
                 continue

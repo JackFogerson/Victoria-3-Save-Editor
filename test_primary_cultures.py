@@ -16,7 +16,7 @@ class PrimaryCultureTests(unittest.TestCase):
             index = index_save(path)
             self.assertEqual(culture_ids(read_country(index, '1')), ['25'])
             backup = save_primary_cultures(index, '1', ['25', '46', '25'])
-            self.assertEqual(backup.read_bytes(), before)
+            self.assertIsNone(backup)
             self.assertEqual(path.read_bytes(), before.replace(b'cultures={ 25 }', b'cultures={ 25 46 }', 1))
             with self.assertRaisesRegex(ValueError, 'changed'):
                 save_primary_cultures(index, '1', ['25'])

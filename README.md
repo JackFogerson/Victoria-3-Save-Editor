@@ -8,7 +8,7 @@ In either culture field, type an ID or part of a name to immediately see matchin
 
 Add or update entries in `cultures.json` to expand the name list, then restart the editor. The supplied mappings are user-provided.
 
-The editor operates on text saves and replaces the selected file. Keep a backup before editing.
+The editor operates on text saves and replaces the selected file. Automatic backups are disabled.
 
 ## Culture definitions
 
@@ -24,7 +24,7 @@ Run checks with `python -B -m unittest discover`.
 
 Select a text save, enter its State ID in the top field, then open State Homelands and click Load Homelands for State ID. The editor reads that state's `region` from the save and finds the matching region in `game/common/history/states/00_states.txt`; it does not infer IDs from history-file order.
 
-Search cultures by ID or name and click Add Homeland, or select existing homelands and click Remove Selected. A culture key such as `north_german` can also be entered directly, including modded keys. Unknown numeric IDs are rejected because history files require culture keys. Save State Homelands creates a dated backup and edits only that region's homeland entries. Changing the selected save or State ID requires reloading before saving.
+Search cultures by ID or name and click Add Homeland, or select existing homelands and click Remove Selected. A culture key such as `north_german` can also be entered directly, including modded keys. Unknown numeric IDs are rejected because history files require culture keys. Save State Homelands edits only that region's homeland entries. Changing the selected save or State ID requires reloading before saving.
 
 These are initial game-history changes for new games, not edits to the current save. A region's homelands apply to all its split-state portions. Browse supports alternate installations or writable copies; Windows may require permission to write into the game folder.
 
@@ -32,7 +32,7 @@ These are initial game-history changes for new games, not edits to the current s
 
 State Editor always uses the State ID entered at the top and resolves it through the selected save, just like State Homelands. Click Load State. The editor searches the region folder for the matching file and shows its name.
 
-Change arable land directly. Add/remove arable building keys. Select a capped building, enter a level, and click Add / Update; the same controls add new capped buildings, and Remove deletes the selected entry. Search suggestions come from the selected folder, and manual building keys remain supported. Levels must be non-negative whole numbers. Click Save State Resources to write the loaded region's changed fields and create a dated backup. Other regions, provinces, traits, and discoverable-resource definitions are preserved. These edits affect game map definitions for new games, not the selected save.
+Change arable land directly. Add/remove arable building keys. Select a capped building, enter a level, and click Add / Update; the same controls add new capped buildings, and Remove deletes the selected entry. Search suggestions come from the selected folder, and manual building keys remain supported. Levels must be non-negative whole numbers. Click Save State Resources to write the loaded region's changed fields. Other regions, provinces, traits, and discoverable-resource definitions are preserved. These edits affect game map definitions for new games, not the selected save.
 
 ## Experimental qualification shortage report
 
@@ -52,7 +52,7 @@ Autofill only changes form fields. Apply Population Changes is still required to
 
 In Change Culture, use Change culture population to select a culture by ID/name and enter a signed percentage: `-90` removes 90%, `+10` adds 10%, and `-100` sets workers and dependents to zero. Decimal percentages are supported. Each matching population group's workers and dependents are scaled separately and rounded to whole people (halves round up), so very small populations may not change by the exact aggregate percentage. The existing culture ID is preserved.
 
-Apply Percentage changes only that culture in the selected State ID and creates a dated backup beside the save. It does not apply workforce autofill amounts, culture swaps, or religion swaps. A status message reports before/after totals. Missing matches or invalid percentages leave the save unchanged.
+Apply Percentage changes only that culture in the selected State ID. It does not apply workforce autofill amounts, culture swaps, or religion swaps. A status message reports before/after totals. Missing matches or invalid percentages leave the save unchanged.
 
 Culture source selectors (swap Target ID and percentage Culture) suggest only cultures with workers or dependents in the selected save/state. This list loads in the background when the save or State ID changes, independently of workforce autofill. Unknown names show `(pending)`. Replacement New ID remains unrestricted; manual ID entry remains supported.
 
@@ -60,11 +60,11 @@ Culture source selectors (swap Target ID and percentage Culture) suggest only cu
 
 The Laws tab scans the installed `common/laws` folder (Browse Folder supports other installations). Search the dropdown and select a law to load it automatically. Under Ongoing Effects, select a consequence, edit its value and click Add / Update; use the searchable effect list to add a consequence, or Remove Selected to delete one. Suggestions include effects found across the loaded laws; custom modifier keys are allowed. Values are numbers or yes/no. Percentage modifiers use fractional values, such as 0.1 for 10%.
 
-Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, creates a dated backup, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.
+Advanced On Enactment and On Removal tabs edit effect scripts. Script structure is checked before saving, but engine semantics are not validated. Saving definitions does not replay enactment/removal events. Save Law Effects changes only the selected law, preserves unrelated content, and refuses to overwrite externally changed files. Changes apply globally to countries using that law; game-folder write permission may be needed.
 
 ## Institution law effects
 
-When using the default game laws folder, the editor also scans enabled mods listed in `content_load.json` and selects their replacement law definitions, including `REPLACE_OR_CREATE:` entries. The selected law's full source path appears in the status line. Saving a mod law edits that mod file with a backup; Workshop updates may overwrite those edits.
+When using the default game laws folder, the editor also scans enabled mods listed in `content_load.json` and selects their replacement law definitions, including `REPLACE_OR_CREATE:` entries. The selected law's full source path appears in the status line. Saving a mod law edits that mod file; Workshop updates may overwrite those edits.
 
 The Laws tab separates **Law effects** from **Institution effects per level**. Welfare and other institution laws open on their institution effects. The table includes inherited institution effects and shows editable totals per level. Entering 0.3 for welfare payments means 30% per level; the editor calculates the law-specific adjustment automatically. Removing an inherited effect sets its total to zero for that law. This edits the chosen law, not the shared institution definition. Suggestions also include installed modifier type definitions.
 
@@ -72,11 +72,11 @@ After saving law definitions, fully exit and restart Victoria 3 before loading t
 
 ## Primary cultures
 
-The State Editor defaults to **Selected save** and reads the campaign's saved resource pools. **New-game map** remains available for editing map definitions. Arable land and resource limits are totals for the whole region, shared by split states. Changing arable land updates each split state's saved amount using its land share. Adding an undiscovered resource as capped converts its saved undiscovered amount. Saving creates a backup; reload the campaign in-game afterward.
+The State Editor defaults to **Selected save** and reads the campaign's saved resource pools. **New-game map** remains available for editing map definitions. Arable land and resource limits are totals for the whole region, shared by split states. Changing arable land updates each split state's saved amount using its land share. Adding an undiscovered resource as capped converts its saved undiscovered amount. Saving overwrites the selected save; reload the campaign in-game afterward.
 
-Existing campaigns store culture obsessions and taboos in the save. In Culture Definitions, load a culture, select its goods, and click **Apply Obsessions/Taboos to Selected Save** to update those lists in the campaign. It creates a backup and preserves other culture data; reload the edited save in-game. The separate Save Culture Definition button continues to edit game definitions.
+Existing campaigns store culture obsessions and taboos in the save. In Culture Definitions, load a culture, select its goods, and click **Apply Obsessions/Taboos to Selected Save** to update those lists in the campaign. It preserves other culture data; reload the edited save in-game. The separate Save Culture Definition button continues to edit game definitions.
 
-The Primary Cultures tab edits a nation's primary cultures in the selected text save. Choices load automatically. Search the nation by save ID or country tag, then search cultures by ID or name. Add Culture and Remove Selected stage changes; Save Primary Cultures writes that nation's list. At least one primary culture is required. A dated `.bak` backup is created and excluded from newest-save selection. Reload the edited save in-game. This changes national primary-culture status, not population culture identities.
+The Primary Cultures tab edits a nation's primary cultures in the selected text save. Choices load automatically. Search the nation by save ID or country tag, then search cultures by ID or name. Add Culture and Remove Selected stage changes; Save Primary Cultures writes that nation's list. At least one primary culture is required. No backup is created. Reload the edited save in-game. This changes national primary-culture status, not population culture identities.
 
 ## Mass migration events (experimental)
 
@@ -96,4 +96,12 @@ The top State ID field suggests `ID (State Name)` while typing an ID or name. Na
 
 State Editor also scans `resource` blocks with `undiscovered_amount`. The installed files contain three types: oil rigs (150 entries, 4,757 levels), rubber plantations (108 entries, 1,779 levels), and gold fields (46 entries, 360 levels). These building keys are included in capped-resource suggestions, even in regions without an undiscovered entry.
 
-Loading a state displays its undiscovered amounts. Selecting a matching capped-resource key suggests existing capped levels plus all undiscovered levels of that type. Level is the final capped total and remains editable. Add / Update stages conversion; Save State Resources removes matching undiscovered resource blocks and writes the capped value with a backup. Other resource types stay unchanged. Removing a staged capped entry cancels its pending conversion. A gold-field conversion uses `building_gold_field`, not `building_gold_mine`; the converted resource block, including any depletion metadata, is removed.
+Loading a state displays its undiscovered amounts. Selecting a matching capped-resource key suggests existing capped levels plus all undiscovered levels of that type. Level is the final capped total and remains editable. Add / Update stages conversion; Save State Resources removes matching undiscovered resource blocks and writes the capped value. Other resource types stay unchanged. Removing a staged capped entry cancels its pending conversion. A gold-field conversion uses `building_gold_field`, not `building_gold_mine`; the converted resource block, including any depletion metadata, is removed.
+
+## Batch States
+
+Open **Batch States**, click **Start Fresh / Load Save**, and add states by ID or name. The save is scanned once. Each state has its own panel for homelands, culture percentages, culture conversions, religion conversions, and workforce additions. Edit several panels and click **Apply All State Changes** to write everything together. Blank conversions and zero adjustments leave populations unchanged.
+
+Percentages apply to each matching population’s workers and dependents first, followed by workforce additions and then culture/religion conversions. Homelands are shared by split states in the same region; conflicting lists are rejected. If the save changes externally, reload before applying. Resource editing remains in State Editor.
+
+All editor save and definition actions now overwrite their target without creating automatic backup files.

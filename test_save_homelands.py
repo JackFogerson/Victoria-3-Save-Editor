@@ -13,7 +13,7 @@ class SaveHomelandTests(unittest.TestCase):
             loaded = load_homelands(path, '20')
             self.assertEqual(loaded['current'], [])
             backup = save_homelands(loaded, ['french'])
-            self.assertEqual(backup.read_bytes(), source.encode())
+            self.assertIsNone(backup)
             self.assertEqual(path.read_bytes(), source.replace('core_states={ STATE_ORIGIN }', 'core_states={ STATE_ORIGIN STATE_DESTINATION }').encode())
             with self.assertRaises(ValueError): save_homelands(loaded, [])
             fresh = load_homelands(path, '20')

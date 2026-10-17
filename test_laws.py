@@ -109,7 +109,7 @@ class LawTests(unittest.TestCase):
             tab.query.set('law_test'); tab.select_law()
             tab.effect.set('country_authority_add'); tab.value.set('300'); tab.add(); tab.save()
             self.assertEqual(law_values(path.read_text(encoding='utf-8-sig'), 'law_test')['modifier']['country_authority_add'], '300')
-            self.assertEqual(next(Path(folder).glob('*.bak')).read_bytes(), original)
+            self.assertEqual(list(Path(folder).glob('*.bak')), [])
             self.assertTrue(path.read_bytes().startswith(b'\xef\xbb\xbf'))
 
 

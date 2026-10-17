@@ -62,10 +62,10 @@ class CultureDefinitionTab(ttk.Frame):
             box.pack(fill='both', expand=True)
             self.goods_lists[key] = box
         ttk.Label(self, textvariable=self.status, wraplength=720).pack(anchor='w', pady=5)
-        self.save_button = ttk.Button(self, text='Save Culture Definition (creates backup)', command=self.save, state='disabled')
+        self.save_button = ttk.Button(self, text='Save Culture Definition', command=self.save, state='disabled')
         self.save_button.pack(anchor='w')
         if save_path is not None:
-            ttk.Button(self, text='Apply Obsessions/Taboos to Selected Save (creates backup)', command=self.apply_to_save).pack(anchor='w')
+            ttk.Button(self, text='Apply Obsessions/Taboos to Selected Save', command=self.apply_to_save).pack(anchor='w')
         ttk.Label(self, text='Existing campaigns store their own obsessions and taboos. Apply to the save, then reload it in-game.', wraplength=900).pack(anchor='w')
         if DEFAULT_CULTURE_FILE.is_file():
             self.load_file()
@@ -80,7 +80,7 @@ class CultureDefinitionTab(ttk.Frame):
             backup = apply_culture_goods(self.save_path(), {self.loaded_culture: self.current_values()})
         except (OSError, ValueError) as exc:
             messagebox.showerror('Cannot Update Save', str(exc)); return
-        self.status.set(f'Updated {self.loaded_culture} obsessions/taboos in {backup.name.split(".v3")[0]}. Reload the save in-game. Backup created.')
+        self.status.set(f'Updated {self.loaded_culture} obsessions/taboos in {Path(self.save_path()).name}. Reload the save in-game. No backup created.')
         if self.on_saved: self.on_saved()
 
     def allow_discard(self):
@@ -197,6 +197,6 @@ class CultureDefinitionTab(ttk.Frame):
         self.blocks = definitions(updated)
         self.options = catalog(updated)
         self.loaded_values = values
-        self.status.set(f'Saved {self.loaded_culture}. Backup: {backup.name}')
+        self.status.set(f'Saved {self.loaded_culture}. No backup created')
         if self.on_saved: self.on_saved()
 

@@ -20,7 +20,7 @@ class LawTab(ttk.Frame):
         self.value = tk.StringVar()
         self.status = tk.StringVar(value='Choose a law to edit its effects.')
         self.labels, self.options = {}, []
-        ttk.Label(self, text='Edit law effects for every country using the law. Save creates a backup.').pack(anchor='w')
+        ttk.Label(self, text='Edit law effects for every country using the law. Saves without automatic backups.').pack(anchor='w')
         row = ttk.Frame(self); row.pack(fill='x', pady=5)
         ttk.Entry(row, textvariable=self.folder, state='readonly').pack(side='left', fill='x', expand=True)
         ttk.Button(row, text='Browse Folder…', command=self.browse).pack(side='left')
@@ -65,7 +65,7 @@ class LawTab(ttk.Frame):
             self.scripts[key] = text
         ttk.Label(self, textvariable=self.status, wraplength=900).pack(anchor='w', pady=4)
         ttk.Label(self, text='After saving game definitions, fully exit and restart Victoria 3, then load your save.\nQualifications modifiers change qualification gain; they do not instantly create qualified workers.', wraplength=900).pack(anchor='w')
-        self.save_button = ttk.Button(self, text='Save Law Effects (creates backup)', command=self.save, state='disabled')
+        self.save_button = ttk.Button(self, text='Save Law Effects', command=self.save, state='disabled')
         self.save_button.pack(anchor='w')
         if DEFAULT_LAWS.is_dir(): self.load_folder()
 
@@ -190,5 +190,5 @@ class LawTab(ttk.Frame):
         self.institution_modifiers = saved['institution_modifier']
         self.initial = self.values()
         self.refresh()
-        self.status.set(f'Saved {self.loaded}. Restart Victoria 3 and load your save. Backup: {backup.name}')
+        self.status.set(f'Saved {self.loaded}. Restart Victoria 3 and load your save. No backup created')
         if self.on_saved: self.on_saved()

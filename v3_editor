@@ -18,6 +18,7 @@ from state_culture_index import StateCultureIndex
 from law_tab import LawTab
 from migration_tab import MigrationTab
 from primary_culture_tab import PrimaryCultureTab
+from batch_tab import BatchTab
 from state_selector import StateSelector, newest_save
 
 
@@ -252,7 +253,7 @@ class Victoria3SaveEditor:
         ttk.Label(scale_row, text="Change %:").pack(side="left")
         ttk.Entry(scale_row, textvariable=self.scale_percent, width=9).pack(side="left", padx=5)
         ttk.Button(scale_row, text="Apply Percentage", command=self.apply_culture_percentage).pack(side="left")
-        ttk.Label(scale_frame, text="-90 removes 90% from EACH matching population; +10 adds 10% to EACH.\nIncludes workers and dependents, across ALL religions and professions in this state.\nRounds each group's counts to whole people. Creates a backup.").pack(anchor="w", pady=4)
+        ttk.Label(scale_frame, text="-90 removes 90% from EACH matching population; +10 adds 10% to EACH.\nIncludes workers and dependents, across ALL religions and professions in this state.\nRounds each group's counts to whole people. No automatic backup.").pack(anchor="w", pady=4)
         self.scale_status = tk.StringVar(value="Percentage changes apply separately from workforce additions and culture swaps.")
         ttk.Label(scale_frame, textvariable=self.scale_status, wraplength=700).pack(anchor="w")
 
@@ -286,6 +287,7 @@ class Victoria3SaveEditor:
         self.law_tab = LawTab(notebook, self.select_latest_save)
         self.migration_tab = MigrationTab(notebook, self, CULTURE_NAMES)
         self.primary_culture_tab = PrimaryCultureTab(notebook, self)
+        self.batch_tab = BatchTab(notebook, self)
 
         # 4. Master Process Button
         btn_process = ttk.Button(
@@ -616,7 +618,7 @@ class Victoria3SaveEditor:
                                           (culture, Decimal(1) + percent / 100))
             self.shortage_autofill.cache = None
             self.state_culture_index.changed()
-            self.scale_status.set(f"Population changed from {stats['before']:,} to {stats['after']:,} across {stats['groups']} groups. Backup created beside the save.")
+            self.scale_status.set(f"Population changed from {stats['before']:,} to {stats['after']:,} across {stats['groups']} groups. No backup created.")
             self.select_latest_save()
         except (ValueError, InvalidOperation, OSError) as exc:
             messagebox.showerror("Cannot Change Population", str(exc))
@@ -664,7 +666,7 @@ class Victoria3SaveEditor:
         if population_scale is not None and not stats['groups']:
             os.remove(temp_file)
             raise ValueError("No population groups matched that culture and State ID.")
-        backup = in_file + "." + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + ".bak"
+        backup = None
         try:
             commit_save(temp_file, in_file, expected, backup)
         finally:

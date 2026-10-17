@@ -11,7 +11,7 @@ class CultureSaveTests(unittest.TestCase):
             path = Path(folder) / 'save.v3'
             path.write_bytes(SAVE.encode())
             backup = apply_culture_goods(path, {'french': {'obsessions': ['coffee'], 'taboos': ['fish']}})
-            self.assertEqual(backup.read_bytes(), SAVE.encode())
+            self.assertIsNone(backup)
             self.assertIn(b'obsessions={ coffee }', path.read_bytes())
             self.assertIn(b'taboos={ fish }', path.read_bytes())
             self.assertIn(b'state=99 origin=1', path.read_bytes())

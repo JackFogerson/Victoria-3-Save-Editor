@@ -59,7 +59,7 @@ class StateResourceTab(ttk.Frame):
                 ttk.Entry(row, textvariable=self.level, width=7).pack(side='left')
             ttk.Button(row, text='Add / Update' if key == 'capped_resources' else 'Add', command=lambda k=key: self.add(k)).pack(side='left')
             ttk.Button(row, text='Remove', command=lambda k=key: self.remove(k)).pack(side='left')
-        self.save_button = ttk.Button(self, text='Save State Resources (creates backup)', command=self.save, state='disabled')
+        self.save_button = ttk.Button(self, text='Save State Resources', command=self.save, state='disabled')
         self.save_button.pack(anchor='w', pady=6)
         self.queries['capped_resources'].trace_add('write', self.suggest_discovery_level)
 
@@ -183,7 +183,7 @@ class StateResourceTab(ttk.Frame):
                 backup = save_campaign_resources(self.save_data, values)
                 self.region = None
                 self.save_button.configure(state='disabled')
-                self.status.set(f'Saved campaign resources. Reload the save in-game. Backup: {backup.name}. Load State again before further edits.')
+                self.status.set(f'Saved campaign resources. Reload the save in-game. No backup created. Load State again before further edits.')
                 self.editor.select_latest_save()
                 return
             updated = replace_resources(self.text, self.region, changes)
@@ -197,5 +197,5 @@ class StateResourceTab(ttk.Frame):
         self.converted.clear()
         self.initial = self.values()
         self.refresh()
-        self.status.set(f'Saved {self.region}. Backup: {backup.name}')
+        self.status.set(f'Saved {self.region}. No backup created')
         self.editor.select_latest_save()

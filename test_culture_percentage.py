@@ -49,7 +49,7 @@ class CulturePercentageTests(unittest.TestCase):
                 editor.apply_culture_percentage(); errors.assert_not_called()
             self.assertIn('workforce=10', path.read_text())
             self.assertIn('dependents=5\n', path.read_text())
-            self.assertEqual(next(Path(folder).glob('*.bak')).read_text(), original)
+            self.assertEqual(list(Path(folder).glob('*.bak')), [])
             self.assertIn('350 to 35', editor.scale_status.get())
             before = path.read_bytes()
             for invalid in ('-101', 'NaN', 'Infinity', 'abc'):

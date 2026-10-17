@@ -47,7 +47,7 @@ class HomelandTab(ttk.Frame):
         self.suggestions = LiveSuggestions(self.picker, self.query, self.search)
         ttk.Button(row, text='Add Homeland', command=self.add).pack(side='left', padx=5)
         ttk.Button(row, text='Remove Selected', command=self.remove).pack(side='left')
-        self.save_button = ttk.Button(self, text='Save State Homelands (creates backup)', command=self.save, state='disabled')
+        self.save_button = ttk.Button(self, text='Save State Homelands', command=self.save, state='disabled')
         self.save_button.pack(anchor='w')
         self.search()
 
@@ -154,7 +154,7 @@ class HomelandTab(ttk.Frame):
             if self.loaded_mode == 'Selected save':
                 backup = save_homelands(self.save_data, self.current)
                 self.initial = list(self.current)
-                self.status.set(f'Saved campaign homelands for {self.region}. Reload the save in-game. Backup: {backup.name if backup else "no changes"}')
+                self.status.set(f'Saved campaign homelands for {self.region}. Reload the save in-game. No backup created')
                 self.save_button.configure(state='disabled')
                 self.editor.select_latest_save()
                 return
@@ -168,5 +168,5 @@ class HomelandTab(ttk.Frame):
             return
         self.original, self.text = encoded, updated
         self.initial = list(self.current)
-        self.status.set(f'Saved {self.region}. Backup: {backup.name}')
+        self.status.set(f'Saved {self.region}. No backup created')
         self.editor.select_latest_save()

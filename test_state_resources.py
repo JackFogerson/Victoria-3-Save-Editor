@@ -64,7 +64,7 @@ class StateResourceTests(unittest.TestCase):
             editor.state_id.set('42'); tab.save()
             self.assertEqual(resource_values(definitions(path.read_text(encoding='utf-8-sig'))['STATE_NEW_YORK']), {
                 'arable_land': '250', 'arable_resources': ['building_rice_farm'], 'capped_resources': {'building_iron_mine': '60'}})
-            self.assertEqual(next(Path(folder).glob('*.bak')).read_bytes(), original)
+            self.assertEqual(list(Path(folder).glob('*.bak')), [])
             tab.queries['capped_resources'].set('building_oil_rig')
             self.assertEqual(tab.level.get(), '20')
             tab.add('capped_resources')
