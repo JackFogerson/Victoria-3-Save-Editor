@@ -17,14 +17,20 @@ def scalar(text, key, default=''):
     return match[1].strip('"') if match else default
 
 
-def load_batch(path):
+def load_batch(path, include_settlements=False):
     path = Path(path).resolve()
     before = signature(path)
     states, cultures, pops = {}, {}, []
     state_records, regions, countries = {}, {}, {}
-    for section, ident, start, end, raw in entries(path, ('states', 'cultures', 'pops', 'state_region_manager', 'country_manager')):
+    buildings, seen = {}, set()
+    for section, ident, start, end, raw in entries(path, ('states', 'cultures', 'pops', 'state_region_manager', 'country_manager', 'building_manager'), seen=seen):
         text = raw.decode('utf-8')
-        if section == 'state_region_manager':
+        if section == 'building_manager':
+            sid, key = scalar(text, 'state'), scalar(text, 'building')
+            levels = Decimal(scalar(text, 'levels', '0'))
+            if levels.is_finite() and levels > 0 and scalar(text, 'active', 'yes') != 'no':
+                counts = buildings.setdefault(sid, Counter()); counts[key] += levels
+        elif section == 'state_region_manager':
             regions[get(text, 'template', '').strip(chr(34))] = (start, end, text)
         elif section == 'country_manager':
             countries[ident] = scalar(text, 'definition')
@@ -59,7 +65,10 @@ def load_batch(path):
             if match:
                 game_date = '-'.join(x.decode().zfill(2) for x in match.groups()); break
             if handle.tell() > 1024 * 1024: break
-    return {'date': game_date, 'state_records': state_records, 'regions': regions, 'countries': countries, 'path': str(path), 'signature': before, 'states': states, 'cultures': cultures, 'pops': pops}
+    from settlement_checklist import load_catalog
+    catalog = load_catalog() if include_settlements else None
+    if signature(path) != before: raise ValueError('Save changed during loading. Reload it.')
+    return {'settlement_catalog': catalog, 'buildings': buildings, 'building_data_present': 'building_manager' in seen, 'date': game_date, 'state_records': state_records, 'regions': regions, 'countries': countries, 'path': str(path), 'signature': before, 'states': states, 'cultures': cultures, 'pops': pops}
 
 
 def apply_batch(snapshot, plans):

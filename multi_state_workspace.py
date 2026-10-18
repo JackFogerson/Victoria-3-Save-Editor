@@ -23,6 +23,18 @@ class ResourceCard(ttk.LabelFrame):
         super().__init__(parent, text=owner.label(sid), padding=6)
         self.pack(fill='x', padx=6, pady=6)
         self.panel = None
+        from settlement_checklist import checklist
+        catalog = owner.snapshot.get('settlement_catalog')
+        frame = ttk.LabelFrame(self, text='Settlement checklist', padding=5)
+        frame.pack(fill='x', pady=5)
+        if catalog:
+            table = ttk.Treeview(frame, columns=('type','town','status','building'), show='headings', height=5)
+            for key, title, width in [('type','Hub',65),('town','Town',140),('status','Status',135),('building','Existing building / what to build',480)]:
+                table.heading(key,text=title); table.column(key,width=width,minwidth=55)
+            table.pack(fill='x')
+            for row in checklist(owner.snapshot,sid,catalog): table.insert('', 'end', values=row)
+        else: ttk.Label(frame,text='Reload all states to load settlement definitions.').pack(anchor='w')
+        ttk.Label(frame,text='Checks built levels in this state, not resource capacity or queued construction. Building present does not verify map visibility.\nSuggested buildings still need suitable resources/technology. Reload all states after construction and a new save.',wraplength=900).pack(anchor='w')
         try:
             loaded = resources_from_records(owner.snapshot['path'], owner.snapshot['signature'], sid,
                                             owner.snapshot['state_records'], owner.snapshot['regions'])
@@ -204,7 +216,7 @@ class MultiStateWorkspace(BatchTab):
         self.restore_ids = list(self.cards)
         path = self.editor.file_path.get()
         if not Path(path).is_file(): messagebox.showerror('Select Save','Select a text save first.'); return
-        self.run('load',path,lambda: load_batch(path))
+        self.run('load',path,lambda: load_batch(path, include_settlements=True))
 
     def apply(self):
         if self.busy or self.snapshot is None: return
@@ -218,7 +230,7 @@ class MultiStateWorkspace(BatchTab):
         def write():
             result = apply_batch(snapshot,plans)
             # A successful write must never be mistaken for a failure if reloading fails.
-            try: refreshed, error = load_batch(snapshot['path']), None
+            try: refreshed, error = load_batch(snapshot['path'], include_settlements=True), None
             except Exception as exc: refreshed, error = None, str(exc)
             return result, refreshed, error
         self.run('apply',snapshot['path'],write)

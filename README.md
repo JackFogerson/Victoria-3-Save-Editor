@@ -109,3 +109,5 @@ For example, add Maine, New Hampshire, Vermont, Massachusetts, Rhode Island, and
 Percentages apply to each matching population’s workers and dependents first, followed by workforce additions and culture/religion conversions. Split states share regional homelands and resources; conflicting edits are rejected. Existing migrations are preserved, and occupied destinations are rejected. If another process changes the save, reload before applying.
 
 All editor save and definition actions overwrite their target without creating automatic backup files.
+
+State Editor includes a settlement checklist for each selected state: hub type, English town name (including enabled mod overrides), built matching buildings, and examples to construct when missing. It reads completed positive building levels from the selected save, not resource capacity or the construction queue. Missing map/definition data is shown as unknown, and undefined hubs as unavailable. It does not verify rendered map visibility or construct buildings. Reload all states from a fresh save after building.

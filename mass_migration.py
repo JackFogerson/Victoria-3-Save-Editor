@@ -13,7 +13,7 @@ def signature(path):
     return stat.st_size, stat.st_mtime_ns
 
 
-def entries(path, sections=('country_manager', 'states', 'cultures')):
+def entries(path, sections=('country_manager', 'states', 'cultures'), seen=None):
     section = None
     depth = 0
     raw = None
@@ -27,6 +27,7 @@ def entries(path, sections=('country_manager', 'states', 'cultures')):
                 match = section_pattern.match(line)
                 if match:
                     section = match[1].decode(); depth = 1
+                    if seen is not None: seen.add(section)
                 continue
             if depth == 2:
                 match = re.match(rb'^\s*(\d+)=\{', line)
