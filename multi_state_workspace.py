@@ -112,8 +112,9 @@ class MultiStateWorkspace(BatchTab):
         self.query = tk.StringVar(); self.status = tk.StringVar(value='Load the save, then add states. The same list appears in every state tab.')
         self.resource_options = {'arable_resources': [], 'capped_resources': []}
         self.restore_ids = []
+        self.refresh_requested = False
         row = ttk.Frame(self); row.pack(fill='x')
-        self.load_button = ttk.Button(row, text='Load / Reload All States', command=self.load); self.load_button.pack(side='left')
+        self.load_button = ttk.Button(row, text='Load / Refresh (Keep Edits)', command=self.load); self.load_button.pack(side='left')
         self.picker = ttk.Combobox(row, textvariable=self.query, width=30, postcommand=self.search); self.picker.pack(side='left', padx=5)
         self.suggestions = LiveSuggestions(self.picker, self.query, self.search)
         ttk.Button(row, text='Add State', command=self.add).pack(side='left')
@@ -151,6 +152,39 @@ class MultiStateWorkspace(BatchTab):
         self.apply_button.pack(anchor='e')
         self.trace = editor.file_path.trace_add('write', self.file_changed)
         self.bind('<Destroy>', self.cleanup, add='+')
+
+    def file_changed(self, *_):
+        if self.snapshot is None: return
+        try:
+            current = Path(self.editor.file_path.get()).resolve()
+            if current != Path(self.snapshot['path']):
+                self.status.set('Drafts kept for ' + Path(self.snapshot['path']).name + '. Select that save again to continue. Refresh will not discard them.')
+                self.apply_button.configure(state='disabled'); return
+            if signature(current) == self.snapshot['signature']:
+                if not self.busy: self.apply_button.configure(state='normal')
+                return
+        except OSError as exc:
+            self.status.set('Drafts kept. Cannot read save: ' + str(exc)); return
+        if self.busy:
+            self.refresh_requested = True
+            return
+        self.refresh_drafts()
+
+    def refresh_drafts(self):
+        if self.busy or self.snapshot is None: return
+        previous = self.snapshot
+        path = self.editor.file_path.get()
+        if Path(path).resolve() != Path(previous['path']):
+            self.status.set('Drafts kept for ' + Path(previous['path']).name + '. Select the original save or explicitly Clear States first.')
+            return
+        ids = list(self.cards)
+        def refresh():
+            from state_drafts import rebase_drafts
+            fresh = load_batch(path, include_settlements=True)
+            return rebase_drafts(previous, fresh, ids)
+        self.refresh_requested = False
+        self.run('refresh', path, refresh)
+        self.status.set('Refreshing save data; keeping all pending state edits...')
 
     def label(self, sid):
         return f'{sid} ({self.snapshot["states"][sid]["region"].removeprefix("STATE_").replace("_", " ").title()})'
@@ -212,7 +246,8 @@ class MultiStateWorkspace(BatchTab):
 
     def load(self):
         if self.busy: return
-        if self.cards and not messagebox.askyesno('Reload States','Discard queued edits and reload all selected states?'): return
+        if self.cards and self.snapshot is not None:
+            self.refresh_drafts(); return
         self.restore_ids = list(self.cards)
         path = self.editor.file_path.get()
         if not Path(path).is_file(): messagebox.showerror('Select Save','Select a text save first.'); return
@@ -222,7 +257,7 @@ class MultiStateWorkspace(BatchTab):
         if self.busy or self.snapshot is None: return
         try:
             if Path(self.editor.file_path.get()).resolve() != Path(self.snapshot['path']) or signature(self.snapshot['path']) != self.snapshot['signature']:
-                raise ValueError('Save changed. Reload all states before applying.')
+                raise ValueError('Save changed. Use Load / Refresh (Keep Edits); your drafts remain intact.')
             plans = self.plans()
             if not plans: raise ValueError('Add at least one state.')
         except (OSError,ValueError) as exc: messagebox.showerror('Cannot Apply',str(exc)); return
@@ -268,10 +303,18 @@ class MultiStateWorkspace(BatchTab):
         try: action,path,result,error=self.results.get_nowait()
         except queue.Empty: self.pending=self.after(100,self.poll); return
         self.set_busy(False)
-        if error: self.status.set('Nothing applied: '+error); return
+        if error:
+            self.status.set('Drafts kept. '+error)
+            if action == 'refresh': self.apply_button.configure(state='disabled')
+            return
         if Path(path).resolve()!=Path(self.editor.file_path.get()).resolve():
-            self.snapshot=None; self.status.set('Save selection changed. Reload all states.'); return
-        if action=='load':
+            self.status.set('Save selection changed. Existing state drafts are kept for the original save.'); self.apply_button.configure(state='disabled'); return
+        if action=='refresh':
+            self.snapshot = result
+            self.status.set('Save data refreshed. All pending state edits are preserved; Apply All State Changes is ready.')
+            # Keep the existing widgets, including partially typed values and selections.
+            if self.refresh_requested or signature(path) != result['signature']: self.refresh_drafts()
+        elif action=='load':
             self.populate(result); self.status.set('Loaded. Add states by name or ID; all state tabs share this list.')
         elif action=='estimate':
             from shortage_autofill import ShortageAutofill

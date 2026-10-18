@@ -100,11 +100,11 @@ Loading a state displays its undiscovered amounts. Selecting a matching capped-r
 
 ## Editing multiple states
 
-Use **Load / Reload All States** above the tabs, then search for each state by name or save ID and click **Add State**. The same selection appears as scrolling, independent panels inside the existing **Modify Workforces**, **Change Culture**, **Change Religion**, **State Homelands**, **State Editor**, and **Mass Migration** tabs. There is no separate batch tab.
+Use **Load / Refresh (Keep Edits)** above the tabs, then search for each state by name or save ID and click **Add State**. The same selection appears as scrolling, independent panels inside the existing **Modify Workforces**, **Change Culture**, **Change Religion**, **State Homelands**, **State Editor**, and **Mass Migration** tabs. There is no separate batch tab.
 
 For example, add Maine, New Hampshire, Vermont, Massachusetts, Rhode Island, and Connecticut. In Mass Migration, scroll through their panels and choose a culture, source country, and duration for each destination; tick each event you want to create. In State Editor, scroll through the same states to edit each one's arable land and resources. Resource and homeland panels edit the selected campaign. Culture Definitions, Laws, and Primary Cultures remain global editors.
 
-**Apply All State Changes** validates and saves pending edits from all state tabs together in one write, with no automatic backups. State data is indexed once when loading; adding another state uses the cached index. After saving, all selected states reload together. Reloading or removing states discards their pending edits after confirmation.
+**Apply All State Changes** validates and saves pending edits from all state tabs together in one write, with no automatic backups. State data is indexed once when loading; adding another state uses the cached index. After saving, all selected states reload together. Refreshing preserves pending state edits, including partially typed values. Saving culture definitions does not invalidate state drafts. Save-file changes from other tabs refresh offsets only when the selected states remain unchanged; conflicts keep drafts visible and block applying until resolved. Only explicitly removing/clearing states discards drafts after confirmation. Automatic newest-save selection is held while state panels are loaded.
 
 Percentages apply to each matching population’s workers and dependents first, followed by workforce additions and culture/religion conversions. Split states share regional homelands and resources; conflicting edits are rejected. Existing migrations are preserved, and occupied destinations are rejected. If another process changes the save, reload before applying.
 

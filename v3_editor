@@ -142,6 +142,11 @@ class Victoria3SaveEditor:
         self.select_latest_save()
 
     def select_latest_save(self):
+        workspace = getattr(self, 'multi_state', None)
+        if workspace is not None and workspace.cards and workspace.snapshot is not None:
+            # Refresh the selected campaign without switching away from pending drafts.
+            self.file_path.set(self.file_path.get())
+            return
         folder = os.path.join(os.path.expanduser('~'), 'Documents', 'Paradox Interactive', 'Victoria 3', 'save games')
         try:
             path = newest_save(folder)
