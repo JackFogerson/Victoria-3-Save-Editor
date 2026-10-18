@@ -17,6 +17,7 @@ def load_catalog(game=GAME, mods=None):
         except (OSError, ValueError, KeyError) as exc: mods = []; warnings.append('Could not read enabled mods: ' + str(exc))
     roots = [Path(game), *map(Path, mods)]
     buildings, regions, names = {}, {}, {}
+    mesh_levels, visual_sol = {}, {}
     # Same relative filenames from a later mod replace earlier files.
     def files(relative, pattern):
         effective = {}
@@ -31,14 +32,32 @@ def load_catalog(game=GAME, mods=None):
                 for raw_name, block in definitions(path.read_text(encoding='utf-8-sig')).items():
                     name = raw_name.removeprefix('REPLACE_OR_CREATE:').removeprefix('REPLACE:')
                     fields = {f.key: f.value.strip('"') for f in block.children if f.children is None}
-                    if relative == 'common/buildings': destination[name] = fields.get('city_type', '')
+                    if relative == 'common/buildings':
+                        destination[name] = fields.get('city_type', '')
+                        mesh_levels.pop(name, None)
+                        try:
+                            amount = Decimal(fields.get('levels_per_mesh', 'NaN'))
+                            if amount.is_finite() and amount > 0: mesh_levels[name] = str(amount)
+                        except InvalidOperation: pass
                     else: destination[name] = {hub: fields[hub] for hub in HUBS if hub in fields}
             except (OSError, ValueError) as exc: warnings.append(path.name + ': ' + str(exc))
     for path in files('localization/english', '*.yml'):
         try:
             for key, value in re.findall(r'^\s*(HUB_NAME_STATE_\w+):\d*\s*"([^"\r\n]*)"', path.read_text(encoding='utf-8-sig'), re.M): names[key] = value
         except (OSError, UnicodeError) as exc: warnings.append(path.name + ': ' + str(exc))
-    return {'buildings': buildings, 'regions': regions, 'names': names, 'warnings': warnings}
+    for path in files('common/defines', '*.txt'):
+        try:
+            text = re.sub(r'#[^\r\n]*', '', path.read_text(encoding='utf-8-sig'))
+            block = definitions(text).get('NCities')
+            if block:
+                for item in block.children:
+                    if item.key in ('MID_SOL', 'RICH_SOL'):
+                        try:
+                            value = Decimal(item.value)
+                            if value.is_finite(): visual_sol[item.key] = str(value)
+                        except InvalidOperation: pass
+        except (OSError, UnicodeError, ValueError) as exc: warnings.append(path.name + ': ' + str(exc))
+    return {'mesh_levels': mesh_levels, 'visual_sol': visual_sol, 'buildings': buildings, 'regions': regions, 'names': names, 'warnings': warnings}
 
 
 def checklist(snapshot, sid, catalog):
@@ -66,3 +85,26 @@ def checklist(snapshot, sid, catalog):
             detail = 'Build 1 level: ' + ' / '.join(k.removeprefix('building_').replace('_', ' ') for k in candidates[:3]) if candidates else 'No matching building definition found.'
         rows.append((hub.title(), name if hubs and hub in hubs else '—', status, detail))
     return rows
+
+
+def growth_notes(snapshot, sid, catalog):
+    thresholds = catalog.get('visual_sol', {})
+    mid, rich = thresholds.get('MID_SOL'), thresholds.get('RICH_SOL')
+    lines = ['Visual growth guidance (not a guaranteed maximum size)']
+    if mid and rich:
+        lines.append(f'Housing models: average SoL above {mid} uses middle-class models; above {rich} uses rich models, according to the installed graphics settings. These are appearance thresholds, not city-size targets or a guarantee based on the state-wide average.')
+    else:
+        lines.append('Housing model SoL thresholds are unavailable in the installed definitions.')
+    counts = snapshot.get('buildings', {}).get(sid, {})
+    hubs = catalog['regions'].get(snapshot['states'][sid]['region'], {})
+    for hub in HUBS:
+        if hub not in hubs: continue
+        matching = [key for key, levels in counts.items() if levels > 0 and catalog['buildings'].get(key) == hub]
+        if matching:
+            detail = '; '.join(f'{key.removeprefix("building_").replace("_", " ")}: {counts[key]:g} built, {catalog.get("mesh_levels", {}).get(key, "unknown")} levels per mesh' for key in sorted(matching))
+        else:
+            rates = sorted({Decimal(value) for key, value in catalog.get('mesh_levels', {}).items() if catalog['buildings'].get(key) == hub})
+            detail = 'No matching building yet. Defined levels per mesh: ' + (', '.join(f'{n:g}' for n in rates) if rates else 'unknown') + ' (depends on building type).'
+        lines.append(hub.title() + ': ' + detail)
+    lines.append('Levels per mesh is a graphics scaling setting, NOT the level needed for a maximum-size town. No verified per-town maximum or exact next-growth threshold was found in these definitions. Resource capacity alone does not increase the built levels shown here.')
+    return '\n'.join(lines)
