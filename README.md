@@ -111,5 +111,3 @@ Percentages apply to each matching population’s workers and dependents first, 
 All editor save and definition actions overwrite their target without creating automatic backup files.
 
 State Editor includes a settlement checklist for each selected state: hub type, English town name (including enabled mod overrides), built matching buildings, and examples to construct when missing. It reads completed positive building levels from the selected save, not resource capacity or the construction queue. Missing map/definition data is shown as unknown, and undefined hubs as unavailable. It does not verify rendered map visibility or construct buildings. Reload all states from a fresh save after building.
-
-Each settlement checklist has a **Show / Hide Visual Growth Guide** button. The guide reads housing-model SoL thresholds and building-specific `levels_per_mesh` values from installed definitions, including enabled mods, and shows current built levels. These are graphics settings, not guaranteed maximum-city targets. It does not claim a maximum-size building level or predict exact rendering changes.

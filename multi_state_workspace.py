@@ -23,7 +23,7 @@ class ResourceCard(ttk.LabelFrame):
         super().__init__(parent, text=owner.label(sid), padding=6)
         self.pack(fill='x', padx=6, pady=6)
         self.panel = None
-        from settlement_checklist import checklist, growth_notes
+        from settlement_checklist import checklist
         catalog = owner.snapshot.get('settlement_catalog')
         frame = ttk.LabelFrame(self, text='Settlement checklist', padding=5)
         frame.pack(fill='x', pady=5)
@@ -33,12 +33,6 @@ class ResourceCard(ttk.LabelFrame):
                 table.heading(key,text=title); table.column(key,width=width,minwidth=55)
             table.pack(fill='x')
             for row in checklist(owner.snapshot,sid,catalog): table.insert('', 'end', values=row)
-            details = ttk.Frame(frame)
-            ttk.Label(details, text=growth_notes(owner.snapshot, sid, catalog), wraplength=880, justify='left').pack(anchor='w', pady=4)
-            def toggle_growth():
-                if details.winfo_manager(): details.pack_forget()
-                else: details.pack(fill='x')
-            ttk.Button(frame, text='Show / Hide Visual Growth Guide', command=toggle_growth).pack(anchor='w', pady=4)
         else: ttk.Label(frame,text='Reload all states to load settlement definitions.').pack(anchor='w')
         ttk.Label(frame,text='Checks built levels in this state, not resource capacity or queued construction. Building present does not verify map visibility.\nSuggested buildings still need suitable resources/technology. Reload all states after construction and a new save.',wraplength=900).pack(anchor='w')
         try:
