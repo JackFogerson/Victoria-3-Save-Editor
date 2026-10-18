@@ -39,6 +39,26 @@ class MultiStateTests(unittest.TestCase):
             with self.assertRaises(ValueError): apply_batch(fresh,{'3':{'migration':{'culture':'1','source':'2','days':30}}})
             self.assertEqual(path.read_bytes(),before)
 
+    def test_rebuilt_single_state_is_visible_after_scrolling(self):
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path=Path(folder)/'save.v3'; path.write_text(full_fixture())
+            root=tk.Tk()
+            try:
+                cls=runpy.run_path('v3_editor')['Victoria3SaveEditor']
+                with patch.object(cls,'select_latest_save'): editor=cls(root)
+                ui=editor.multi_state; snapshot=load_batch(path); ui.populate(snapshot)
+                for sid in map(str,range(1,7)): ui.query.set(sid); ui.add()
+                for section in ('culture','resources'):
+                    page=ui.pages[section]; page.master.select(page); root.update()
+                    ui.bodies[section].master.yview_moveto(1)
+                ui.restore_ids=['1']; ui.populate(snapshot)
+                for section in ('culture','resources'):
+                    page=ui.pages[section]; page.master.select(page); root.update()
+                    canvas=ui.bodies[section].master; card=ui.cards['1'][section]
+                    self.assertGreaterEqual(card.winfo_rooty(),canvas.winfo_rooty())
+                    self.assertLess(card.winfo_rooty(),canvas.winfo_rooty()+canvas.winfo_height())
+            finally: root.destroy()
+
     def test_existing_tabs_show_six_independent_state_panels(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             path=Path(folder)/'save.v3'; path.write_text(full_fixture())

@@ -193,6 +193,13 @@ class MultiStateWorkspace(BatchTab):
         for panels in self.cards.values():
             for panel in panels.values(): panel.destroy()
         self.cards.clear(); self.selection.delete(0,'end')
+        self.reset_views()
+
+    def reset_views(self):
+        for body in self.bodies.values():
+            canvas = body.master
+            canvas.yview_moveto(0)
+            canvas.xview_moveto(0)
 
     def clear_selection(self):
         if self.busy: return
@@ -208,6 +215,7 @@ class MultiStateWorkspace(BatchTab):
         if not messagebox.askyesno('Remove State', 'Remove this state and its queued edits from all tabs?'): return
         for card in self.cards.pop(sid).values(): card.destroy()
         self.refresh_selection()
+        self.reset_views()
 
     def refresh_selection(self):
         self.selection.delete(0,'end')
@@ -292,6 +300,7 @@ class MultiStateWorkspace(BatchTab):
         for sid in self.restore_ids:
             if sid in snapshot['states']: self.query.set(sid); self.add()
         self.query.set(''); self.search()
+        self.reset_views()
 
     def estimate_all(self):
         if self.busy or not self.snapshot or not self.cards: return
