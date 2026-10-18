@@ -35,6 +35,18 @@ state_region_manager={
 
 
 class SaveResourceTests(unittest.TestCase):
+    def test_ownerless_historical_state_does_not_split_current_state(self):
+        source = SOURCE.replace(' land=0.25', ' country=11').replace(' arable_land=25', ' arable_land=100')
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            path = Path(folder) / 'test.v3'; path.write_text(source)
+            loaded = load_resources(path, '10')
+            self.assertEqual(set(loaded['states']), {'10'})
+            old_historical = '11={\n region="STATE_TEST"\n land=0.75\n arable_land=75\n}'
+            save_resources(loaded, dict(loaded['values'], arable_land='200'))
+            self.assertIn('arable_land=200', load_resources(path, '10')['states']['10'][2])
+            self.assertIn(old_historical, path.read_text())
+            with self.assertRaisesRegex(ValueError, 'inactive'): load_resources(path, '11')
+
     def test_whole_state_omits_land_share(self):
         source = SOURCE.replace(' land=0.25\n', '').replace('11={\n region="STATE_TEST"\n land=0.75\n arable_land=75\n}\n', '')
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:

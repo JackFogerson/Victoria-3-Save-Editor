@@ -59,6 +59,13 @@ def resources_from_records(path, before, sid, states, regions):
     if sid not in states: raise ValueError('State ID is not present in save.')
     region = get(states[sid][2], 'region', '').strip('"')
     if region not in regions: raise ValueError('State region resource record is missing from save.')
+    regional_states = {i: r for i, r in states.items() if get(r[2], 'region', '').strip(chr(34)) == region}
+    owned_states = {i: r for i, r in regional_states.items() if get(r[2], 'country') is not None}
+    # Conquered/merged states remain as ownerless historical records in saves.
+    # They must not count as active land shares or receive resource edits.
+    if owned_states:
+        if sid not in owned_states: raise ValueError('This is an inactive historical state; select its current owned state.')
+        regional_states = owned_states
     record = regions[region]
     resources = resource_records(record[2])
     values = {'arable_land': nonnegative(get(record[2], 'arable_land', '0')), 'arable_resources': [], 'capped_resources': {}}
@@ -71,7 +78,7 @@ def resources_from_records(path, before, sid, states, regions):
         elif hidden is None: values['arable_resources'].append(name)
     return {'path': str(Path(path).resolve()), 'signature': before, 'region': region,
             'record': record, 'resources': resources, 'values': values, 'undiscovered': undiscovered,
-            'states': {i: r for i, r in states.items() if get(r[2], 'region', '').strip('"') == region}}
+            'states': regional_states}
 
 
 def save_resources(loaded, values):
