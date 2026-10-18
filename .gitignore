@@ -5,3 +5,4 @@ __pycache__/
 *.tmp
 reports/
 shortage_estimates.json
+recovery/
