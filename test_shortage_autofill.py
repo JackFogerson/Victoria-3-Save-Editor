@@ -44,6 +44,14 @@ class AutofillTests(unittest.TestCase):
         controller.fill(result, '253')
         self.assertIn('mod_pm', controller.status.get())
 
+    def test_unknown_method_does_not_block_supported_shortages(self):
+        result={'state_names':{'1':'STATE_TEST'},'warnings':{'1':['Skipped building 9: unknown mod method']},'unmapped_professions':['officers'], 'states_without_qualification_cache':[], 'rows':[{'state_id':'1','profession':'clerks','estimated_shortage':23}]}
+        self.editor.job_inputs['officers'].set('17')
+        self.editor.shortage_autofill.fill(result,'1')
+        self.assertEqual(self.editor.job_inputs['clerks'].get(),'23')
+        self.assertEqual(self.editor.job_inputs['officers'].get(),'17')
+        self.assertIn('partial estimate',self.editor.shortage_autofill.status.get())
+
     def setUp(self):
         self.ns = runpy.run_path('v3_editor')
         self.root = tk.Tk(); self.root.withdraw()

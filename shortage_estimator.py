@@ -56,10 +56,22 @@ def confident_index(scores, count):
     return index if strict or consensus else None
 
 
-def pm_jobs(game):
+def pm_jobs(game, mods=None):
     jobs, unsupported = {}, {}
-    for path in sorted((Path(game) / 'common/production_methods').glob('*.txt')):
+    if mods is None:
+        mods = []
+        if Path(game).resolve() == Path(DEFAULT_GAME).resolve():
+            config = Path.home() / 'Documents/Paradox Interactive/Victoria 3/content_load.json'
+            if config.is_file(): mods = [Path(item['path']) for item in json.loads(config.read_text(encoding='utf-8-sig')).get('enabledMods', [])]
+    roots = [Path(game), *map(Path, mods)]
+    effective = {}
+    for order, root in enumerate(roots):
+        folder = root / 'common/production_methods'
+        for path in sorted(folder.rglob('*.txt')):
+            effective[path.relative_to(folder).as_posix()] = (order, path)
+    for _, path in sorted(effective.values()):
         for name, block in definitions(path.read_text(encoding='utf-8-sig')).items():
+            name = name.removeprefix('REPLACE_OR_CREATE:').removeprefix('REPLACE:')
             result = defaultdict(Decimal)
             flags = []
             for scope in block.children:
@@ -68,7 +80,11 @@ def pm_jobs(game):
                     for field in scaling.children or []:
                         match = re.fullmatch(r'building_employment_(\w+)_add', field.key)
                         if match and scaling.key == 'level_scaled':
-                            result[match[1]] += Decimal(field.value)
+                            try:
+                                amount = Decimal(field.value)
+                                if not amount.is_finite(): raise ValueError('nonfinite employment')
+                                result[match[1]] += amount
+                            except (ArithmeticError, ValueError): flags.append(field.key + '=' + field.value)
                         elif 'employment_' in field.key:
                             flags.append(field.key)
             jobs[name] = dict(result)
@@ -108,7 +124,7 @@ def estimate(save, game=DEFAULT_GAME):
     enum_validation = {}
     for job in professions:
         scores = []
-        for index in range(15):
+        for index in sorted(set(str(i) for i in range(15)) | {i for st in states.values() for i in st['workforce']}):
             relevant = [(sid, counts) for sid, counts in population.items() if sid in states and counts.get(job, 0) > 0]
             matches = sum(Decimal(counts[job]) == states[sid]['workforce'].get(str(index), Decimal(0)) for sid, counts in relevant)
             scores.append((matches, str(index)))
@@ -138,13 +154,17 @@ def estimate(save, game=DEFAULT_GAME):
         if methods is None:
             warnings[sid].add(f'Building {bid} has no production methods.')
             continue
+        incomplete = False
         for method in re.findall(r'"([^"\n]+)"', methods[1]):
             used_methods.add(method)
             if method not in jobs:
-                warnings[sid].add(f'Unknown production method: {method}')
+                incomplete = True
+                warnings[sid].add(f'Skipped building {bid}: unknown production method {method}')
                 continue
+            if unsupported[method]: incomplete = True
             for warning in unsupported[method]: warnings[sid].add(f'Unsupported modifier: {method}: {warning}')
             for job, rate in jobs[method].items(): rates[job] += rate
+        if incomplete: continue
         for job, rate in rates.items():
             required = max(Decimal(0), rate) * Decimal(value(text, 'levels'))
             vacancies[sid][job] += max(Decimal(0), required - employed[bid].get(job, 0))

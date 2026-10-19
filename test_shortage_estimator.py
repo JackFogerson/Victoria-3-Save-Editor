@@ -5,6 +5,17 @@ from shortage_estimator import estimate, write_report, confident_index
 
 
 class ShortageTests(unittest.TestCase):
+    def test_mod_overrides_and_symbolic_jobs(self):
+        from shortage_estimator import pm_jobs
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            base=Path(folder)/'game'; mod=Path(folder)/'mod'
+            for root in (base,mod): (root/'common/production_methods').mkdir(parents=True)
+            (base/'common/production_methods/base.txt').write_text('pm_test={ building_modifiers={ level_scaled={ building_employment_clerks_add=1 } } }')
+            (mod/'common/production_methods/mod.txt').write_text('REPLACE:pm_test={ building_modifiers={ level_scaled={ building_employment_clerks_add=12 } } }\npm_symbolic={ building_modifiers={ level_scaled={ building_employment_officers_add=scripted_value } } }')
+            jobs,unsupported=pm_jobs(base,[mod])
+            self.assertEqual(jobs['pm_test']['clerks'],12)
+            self.assertTrue(unsupported['pm_symbolic'])
+
     def test_consensus_tolerates_stale_caches_but_rejects_ambiguity(self):
         self.assertEqual(confident_index([(635, '7'), (11, '4')], 671), '7')
         self.assertEqual(confident_index([(727, '8'), (1, '4')], 886), '8')
@@ -26,6 +37,12 @@ class ShortageTests(unittest.TestCase):
             save = root / 'save.v3'
             save.write_text(''.join(name + '={\n database={\n' + '\n'.join(blocks) + '\n }\n}\n' for name, blocks in sections.items()))
             original = save.read_bytes()
+            unknown='6={\n state=42\n levels=5\n production_methods={ "test_pm" "unknown_mod_pm" }\n}\n'
+            save.write_text(save.read_text().replace('building_manager={\n database={', 'building_manager={\n database={\n'+unknown))
+            partial=estimate(save,root)
+            self.assertEqual(partial['rows'][0]['estimated_shortage'],1)
+            self.assertIn('unknown_mod_pm',str(partial['warnings']))
+            save.write_bytes(original)
             result = estimate(save, root)
             self.assertEqual(result['profession_indices']['shopkeepers'], '12')
             self.assertEqual(result['rows'][0]['estimated_shortage'], 1)

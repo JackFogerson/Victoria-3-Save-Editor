@@ -104,13 +104,10 @@ class ShortageAutofill:
             self.status.set(f'State ID {sid} is not present in this save.'); return
         reasons = list(result['warnings'].get(sid, []))
         if sid in result['states_without_qualification_cache']:
-            reasons.append('This state has no cached qualification totals.')
+            self.status.set('Automatic fill skipped: this state has no cached qualification totals. Existing inputs kept.'); return
         unmapped = result.get('state_unmapped_professions', {}).get(sid, []) if 'state_unmapped_professions' in result else result['unmapped_professions']
         if unmapped:
-            reasons.append('Could not verify profession IDs against the save’s cached workforce totals: '
-                           + ', '.join(unmapped) + '. The mapping is ambiguous; automatic filling would be unreliable.')
-        if reasons:
-            self.status.set('Automatic fill skipped: ' + ' '.join(reasons)); return
+            reasons.append('Could not verify cached workforce totals for: ' + ', '.join(unmapped) + '. Their inputs were kept.')
         amounts = {row['profession']: row['estimated_shortage'] for row in result['rows'] if row['state_id'] == sid}
         skipped = {}
         if 'workforce_pop_jobs' in result:
@@ -118,9 +115,12 @@ class ShortageAutofill:
             skipped = {job: amount for job, amount in amounts.items() if job not in existing}
             amounts = {job: amount for job, amount in amounts.items() if job in existing}
         for job, variable in self.editor.job_inputs.items():
+            if job in unmapped or ('soldiers' if job == 'servicemen' else job) in unmapped: continue
             variable.set(str(amounts.get('soldiers' if job == 'servicemen' else job, 0)))
         region = result['state_names'][sid].removeprefix('STATE_').replace('_', ' ').title()
         total = sum(amounts.values())
         self.status.set(f'{region}: filled {total:,} estimated workers to add (vacancies minus available qualifications). Review before Apply.' if total else f'{region}: no estimated qualification shortfall. Workforce additions set to 0.')
         if skipped:
             self.status.set(f'{region}: filled {total:,} estimated workers. Skipped professions with no existing workforce populations: ' + ', '.join(f'{job} ({amount:,})' for job, amount in skipped.items()) + '.')
+        if reasons:
+            self.status.set(f'{region}: partial estimate filled {total:,} workers from supported buildings. ' + ' '.join(reasons))

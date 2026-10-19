@@ -47,10 +47,13 @@ class StateCard(ttk.LabelFrame):
             self.combo(frame, target, owner.religion_options, width=30).grid(row=row, column=1, sticky='ew')
         frame.columnconfigure(1, weight=1)
         frame = ttk.LabelFrame(self, text='Workforce additions — total workers per profession', padding=4); frame.pack(fill='x', pady=4)
-        for i, job in enumerate(sorted(self.data['jobs'])):
+        all_jobs = {'laborers', 'machinists', 'engineers', 'farmers', 'clergymen', 'clerks', 'officers', 'bureaucrats', 'aristocrats', 'capitalists', 'shopkeepers', 'academics', 'soldiers', 'peasants', 'slaves'}
+        all_jobs.update(job for state in owner.snapshot['states'].values() for job in state['jobs'])
+        for i, job in enumerate(sorted(all_jobs)):
             variable = tk.StringVar(value='0'); self.workforce[job] = variable
-            ttk.Label(frame, text=job).grid(row=i // 4, column=(i % 4) * 2, sticky='w', padx=3)
+            ttk.Label(frame, text=job + (' *' if job not in self.data['jobs'] else '')).grid(row=i // 4, column=(i % 4) * 2, sticky='w', padx=3)
             ttk.Entry(frame, textvariable=variable, width=8).grid(row=i // 4, column=(i % 4) * 2 + 1, padx=3)
+        ttk.Label(frame, text='* No existing workforce population in this state; additions are skipped for that profession.').grid(row=(len(all_jobs)+3)//4, column=0, columnspan=8, sticky='w', pady=4)
 
     def combo(self, parent, variable, choices, **kwargs):
         widget = ttk.Combobox(parent, textvariable=variable, **kwargs)
