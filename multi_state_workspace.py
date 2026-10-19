@@ -264,14 +264,18 @@ class MultiStateWorkspace(BatchTab):
     def apply(self):
         if self.busy or self.snapshot is None: return
         try:
-            if Path(self.editor.file_path.get()).resolve() != Path(self.snapshot['path']) or signature(self.snapshot['path']) != self.snapshot['signature']:
-                raise ValueError('Save changed. Use Load / Refresh (Keep Edits); your drafts remain intact.')
+            if Path(self.editor.file_path.get()).resolve() != Path(self.snapshot['path']):
+                raise ValueError('These edits belong to a different save. Select the original save to apply them.')
             plans = self.plans()
             if not plans: raise ValueError('Add at least one state.')
         except (OSError,ValueError) as exc: messagebox.showerror('Cannot Apply',str(exc)); return
         self.restore_ids = list(self.cards); snapshot = self.snapshot
         def write():
-            result = apply_batch(snapshot,plans)
+            current = snapshot
+            if signature(snapshot['path']) != snapshot['signature']:
+                from state_drafts import rebase_drafts
+                current = rebase_drafts(snapshot, load_batch(snapshot['path'], include_settlements=True), list(plans))
+            result = apply_batch(current,plans)
             # A successful write must never be mistaken for a failure if reloading fails.
             try: refreshed, error = load_batch(snapshot['path'], include_settlements=True), None
             except Exception as exc: refreshed, error = None, str(exc)

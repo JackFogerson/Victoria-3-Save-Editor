@@ -20,6 +20,15 @@ class DraftTests(unittest.TestCase):
             self.assertIn('obsessions={ coffee fruit }',result['cultures']['1']['text'])
             self.assertIn('arable_land=25',result['state_records']['2'][2])
 
+    def test_unrelated_region_metadata_does_not_block_resources(self):
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
+            p=Path(folder)/'save.v3'; p.write_text(full_fixture()); old=load_batch(p)
+            p.write_text(p.read_text().replace('template=STATE_1', 'template=STATE_1\n unrelated_cache=99',1))
+            fresh=load_batch(p)
+            self.assertIs(rebase_drafts(old,fresh,['1']),fresh)
+            p.write_text(p.read_text().replace('undiscovered_amount=5','undiscovered_amount=6',1))
+            with self.assertRaisesRegex(ValueError,'Resources'): rebase_drafts(old,load_batch(p),['1'])
+
     def test_concurrent_state_change_rejected(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             p=Path(folder)/'save.v3'; p.write_text(full_fixture()); before=load_batch(p)

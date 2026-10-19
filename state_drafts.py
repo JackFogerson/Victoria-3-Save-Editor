@@ -1,5 +1,6 @@
 """Refresh save offsets without discarding or silently reapplying state drafts."""
 from pathlib import Path
+from save_resources import resource_records, get
 
 
 def rebase_drafts(previous, fresh, state_ids):
@@ -17,7 +18,11 @@ def rebase_drafts(previous, fresh, state_ids):
             if fresh['cultures'].get(cid, {}).get('key') != previous['cultures'][cid]['key']:
                 raise ValueError('Culture identities changed. Drafts retained; automatic refresh stopped.')
         old_region, new_region = previous.get('regions', {}).get(previous['states'][sid]['region']), fresh.get('regions', {}).get(fresh['states'][sid]['region'])
-        if (old_region[2] if old_region else None) != (new_region[2] if new_region else None):
+        def resource_values(record):
+            if record is None: return None
+            text = record[2]
+            return (get(text, 'arable_land', '0'), {name: (get(raw, 'amount'), get(raw, 'undiscovered_amount')) for name, raw in resource_records(text).items()})
+        if resource_values(old_region) != resource_values(new_region):
             raise ValueError(f'Resources in State {sid} changed externally. Drafts retained; automatic refresh stopped.')
         # Protect pending migration and state land edits against concurrent changes.
         from mass_migration import field
